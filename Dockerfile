@@ -41,8 +41,12 @@ RUN npm ci --omit=dev && npm cache clean --force
 
 COPY --from=build /app/dist ./dist
 
+COPY scripts/docker-prod-entrypoint.sh /usr/local/bin/docker-prod-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-prod-entrypoint.sh
+
 EXPOSE 3000
 
 USER node
 
-CMD ["node", "dist/main.js"]
+# Set RUN_SEED_ON_DEPLOY=true to run dist/database/seeds/index.js before the API (Render, etc.)
+CMD ["/usr/local/bin/docker-prod-entrypoint.sh"]

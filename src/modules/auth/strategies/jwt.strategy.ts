@@ -6,6 +6,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../../../database/entities/user.entity';
 import { JwtPayload } from '../../../common/interfaces/jwt-payload.interface';
+import { UserStatus } from '../../../common/enums';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -26,7 +27,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       where: { id: payload.sub },
     });
 
-    if (!user || !user.is_active) {
+    if (
+      !user ||
+      user.status === UserStatus.INACTIVE ||
+      user.status === UserStatus.ARCHIVED
+    ) {
       throw new UnauthorizedException('User not found or inactive');
     }
 

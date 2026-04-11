@@ -1,5 +1,6 @@
 export { Company } from './company.entity';
 export { User } from './user.entity';
+export { UserType } from './user-type.entity';
 export { TeamMember } from './team-member.entity';
 export { Role } from './role.entity';
 export { Permission } from './permission.entity';

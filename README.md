@@ -41,15 +41,28 @@ CREATE DATABASE maritime_etss;
 
 ### Run Seed
 
+Entry point: `src/database/seeds/index.ts` (runs all modular runners in order).
+
 ```bash
 npm run seed
 ```
 
-This creates:
-- Super Admin user (`admin@etss.com` / `password123`)
+After `npm run build`, production:
+
+```bash
+npm run seed:prod
+```
+
+**Docker (dev stack, app already running):** `npm run seed:docker`  
+**Docker (one-off job, no running app):** `npm run seed:docker:compose`
+
+**Deploy (Render, production image):** set `RUN_SEED_ON_DEPLOY=true` so the container runs `dist/database/seeds/index.js` before `node dist/main.js`. Override bootstrap admin with `SEED_SUPER_ADMIN_*` env vars (see `.env.example`).
+
+This creates / updates:
+- User types (system + external + metadata)
+- Super Admin user (default `admin@etss.com` / `password123` unless env overrides)
 - Default roles: Super Admin, Admin, Staff
-- Default permissions: create_user, manage_users, manage_roles, view_dashboard, manage_companies
-- Role-permission assignments
+- Default permissions and role-permission assignments
 
 ### Start Development
 
@@ -130,7 +143,10 @@ npm run start:prod
 | `npm run start:dev` | Start dev server with watch |
 | `npm run build` | Build for production |
 | `npm run start:prod` | Run production build |
-| `npm run seed` | Run database seed |
+| `npm run seed` | Run database seed (TypeScript) |
+| `npm run seed:prod` | Run compiled seed (`dist/`) |
+| `npm run seed:docker` | `docker compose exec app npm run seed` |
+| `npm run seed:docker:compose` | One-off `seed` service with `--profile seed` |
 | `npm run migration:generate` | Generate migration |
 | `npm run migration:run` | Run pending migrations |
 | `npm run migration:revert` | Revert last migration |
@@ -149,7 +165,7 @@ src/
 ├── database/
 │   ├── entities/         # All TypeORM entities
 │   ├── migrations/       # TypeORM migrations
-│   └── seeds/            # Seed script
+│   └── seeds/            # index.ts + data/* + runners/* + seed-data-source
 └── modules/
     ├── auth/             # JWT authentication
     ├── users/            # User CRUD + role assignment

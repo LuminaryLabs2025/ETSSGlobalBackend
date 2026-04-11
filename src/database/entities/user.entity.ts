@@ -9,10 +9,12 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { Company } from './company.entity';
+import { UserType } from './user-type.entity';
 import { UserRole } from './user-role.entity';
 import { TeamMember } from './team-member.entity';
 import { ActivityLog } from './activity-log.entity';
 import { Exclude } from 'class-transformer';
+import { AccountType, UserStatus } from '../../common/enums';
 
 @Entity('users')
 export class User {
@@ -28,6 +30,9 @@ export class User {
   @Column({ unique: true })
   email: string;
 
+  @Column({ nullable: true })
+  phone: string;
+
   @Column()
   @Exclude()
   password: string;
@@ -35,15 +40,39 @@ export class User {
   @Column({ default: false })
   is_super_admin: boolean;
 
-  @Column({ default: true })
-  is_active: boolean;
+  @Column({ type: 'enum', enum: AccountType, default: AccountType.SYSTEM })
+  account_type: AccountType;
+
+  @Column({
+    type: 'enum',
+    enum: UserStatus,
+    default: UserStatus.AWAITING_ACTIVATION,
+  })
+  status: UserStatus;
 
   @Column({ nullable: true })
-  company_id: string;
+  user_type_id: string | null;
+
+  @ManyToOne(() => UserType, (ut) => ut.users, { nullable: true })
+  @JoinColumn({ name: 'user_type_id' })
+  user_type: UserType;
+
+  @Column({ nullable: true })
+  company_id: string | null;
 
   @ManyToOne(() => Company, (company) => company.users, { nullable: true })
   @JoinColumn({ name: 'company_id' })
   company: Company;
+
+  @Column({ type: 'jsonb', nullable: true })
+  extra_fields: Record<string, any>;
+
+  @Column({ nullable: true })
+  invited_by: string | null;
+
+  @ManyToOne(() => User, { nullable: true })
+  @JoinColumn({ name: 'invited_by' })
+  invited_by_user: User;
 
   @OneToMany(() => UserRole, (userRole) => userRole.user)
   user_roles: UserRole[];

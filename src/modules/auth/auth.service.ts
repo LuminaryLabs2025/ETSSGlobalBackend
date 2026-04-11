@@ -6,6 +6,7 @@ import * as bcrypt from 'bcrypt';
 import { User } from '../../database/entities/user.entity';
 import { LoginDto } from './dto/login.dto';
 import { JwtPayload } from '../../common/interfaces/jwt-payload.interface';
+import { UserStatus } from '../../common/enums';
 
 @Injectable()
 export class AuthService {
@@ -21,6 +22,7 @@ export class AuthService {
     const user = await this.userRepository.findOne({
       where: { email },
       relations: [
+        'user_type',
         'user_roles',
         'user_roles.role',
         'user_roles.role.role_permissions',
@@ -32,7 +34,10 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    if (!user.is_active) {
+    if (
+      user.status === UserStatus.INACTIVE ||
+      user.status === UserStatus.ARCHIVED
+    ) {
       throw new UnauthorizedException('Account is deactivated');
     }
 
@@ -61,6 +66,11 @@ export class AuthService {
         first_name: user.first_name,
         last_name: user.last_name,
         is_super_admin: user.is_super_admin,
+        account_type: user.account_type,
+        status: user.status,
+        user_type: user.user_type
+          ? { id: user.user_type.id, name: user.user_type.name }
+          : null,
         company_id: user.company_id,
         roles,
         permissions,

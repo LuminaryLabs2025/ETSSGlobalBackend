@@ -1,0 +1,19 @@
+# Example Render Blueprint — adjust service names and env as needed.
+# Docs: https://render.com/docs/blueprint-spec
+#
+# For seeds on each deploy, set RUN_SEED_ON_DEPLOY=true on the web service
+# (matches scripts/docker-prod-entrypoint.sh in the production Docker image).
+
+services:
+  - type: web
+    name: maritime-etss-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    dockerCommand: '' # use Dockerfile CMD (entrypoint runs seed when RUN_SEED_ON_DEPLOY=true)
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: RUN_SEED_ON_DEPLOY
+        value: 'true'
+      # Add DB_*, JWT_SECRET, REDIS_*, etc. via Render dashboard or fromDatabase

@@ -23,6 +23,37 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     if (exception instanceof HttpException) {
       status = exception.getStatus();
       const exceptionResponse = exception.getResponse();
+
+      if (typeof exceptionResponse === 'object' && exceptionResponse !== null) {
+        const er = exceptionResponse as Record<string, unknown>;
+        const msg = er.message;
+        message =
+          typeof msg === 'string'
+            ? msg
+            : Array.isArray(msg)
+              ? (msg as string[]).join('; ')
+              : String(msg ?? 'Error');
+
+        if (status === HttpStatus.INTERNAL_SERVER_ERROR) {
+          this.logger.error(
+            `${request.method} ${request.url}`,
+            exception instanceof Error ? exception.stack : String(exception),
+          );
+        }
+
+        const body: Record<string, unknown> = {
+          statusCode: status,
+          message,
+          timestamp: new Date().toISOString(),
+          path: request.url,
+        };
+        if (Array.isArray(er.errors)) {
+          body.errors = er.errors;
+        }
+        response.status(status).json(body);
+        return;
+      }
+
       message =
         typeof exceptionResponse === 'string'
           ? exceptionResponse

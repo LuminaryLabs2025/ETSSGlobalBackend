@@ -18,10 +18,17 @@ export class MailService {
 
   constructor(private readonly config: ConfigService) {
     const user = config.get<string>('SMTP_USER')?.trim();
+    const port = parseInt(String(config.get('SMTP_PORT', 1025)), 10);
+    const secureFlag = config.get<string>('SMTP_SECURE')?.trim().toLowerCase();
+    const secure =
+      secureFlag === 'true' ||
+      secureFlag === '1' ||
+      port === 465 ||
+      port === 2465;
     this.transporter = nodemailer.createTransport({
       host: config.get<string>('SMTP_HOST', 'localhost'),
-      port: parseInt(String(config.get('SMTP_PORT', 1025)), 10),
-      secure: false,
+      port,
+      secure,
       auth: user
         ? {
             user,

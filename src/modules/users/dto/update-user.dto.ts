@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsBoolean, IsUUID } from 'class-validator';
+import { IsOptional, IsString, IsObject } from 'class-validator';
 
 export class UpdateUserDto {
   @IsString()
@@ -9,11 +9,11 @@ export class UpdateUserDto {
   @IsOptional()
   last_name?: string;
 
-  @IsBoolean()
+  @IsString()
   @IsOptional()
-  is_active?: boolean;
+  phone?: string;
 
-  @IsUUID()
+  @IsObject()
   @IsOptional()
-  company_id?: string;
+  extra_fields?: Record<string, any>;
 }

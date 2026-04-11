@@ -16,7 +16,10 @@ import { UpdateCompanyDto } from './dto/update-company.dto';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { Permissions } from '../../common/decorators/permissions.decorator';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
+@ApiTags('companies')
+@ApiBearerAuth('access-token')
 @Controller('api/companies')
 @UseGuards(AuthGuard('jwt'), RolesGuard, PermissionsGuard)
 export class CompaniesController {

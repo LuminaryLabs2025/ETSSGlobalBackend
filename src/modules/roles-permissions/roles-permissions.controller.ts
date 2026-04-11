@@ -17,7 +17,10 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Permissions } from '../../common/decorators/permissions.decorator';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
+@ApiTags('roles-permissions')
+@ApiBearerAuth('access-token')
 @Controller('api/roles-permissions')
 @UseGuards(AuthGuard('jwt'), RolesGuard, PermissionsGuard)
 export class RolesPermissionsController {

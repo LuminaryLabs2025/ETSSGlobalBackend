@@ -8,6 +8,7 @@ import { ActivityLogInterceptor } from './common/interceptors/activity-log.inter
 import { ActivityLog } from './database/entities/activity-log.entity';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
+import { UserTypesModule } from './modules/user-types/user-types.module';
 import { CompaniesModule } from './modules/companies/companies.module';
 import { TeamMembersModule } from './modules/team-members/team-members.module';
 import { RolesPermissionsModule } from './modules/roles-permissions/roles-permissions.module';
@@ -25,6 +26,7 @@ import { ActivityLogModule } from './modules/activity-log/activity-log.module';
     TypeOrmModule.forFeature([ActivityLog]),
     AuthModule,
     UsersModule,
+    UserTypesModule,
     CompaniesModule,
     TeamMembersModule,
     RolesPermissionsModule,

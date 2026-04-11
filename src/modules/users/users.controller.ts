@@ -3,22 +3,31 @@ import {
   Get,
   Post,
   Put,
+  Patch,
   Delete,
   Body,
   Param,
+  Query,
+  Res,
   ParseUUIDPipe,
   UseGuards,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { AuthGuard } from '@nestjs/passport';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { QueryUsersDto } from './dto/query-users.dto';
 import { AssignRoleDto } from './dto/assign-role.dto';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Permissions } from '../../common/decorators/permissions.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
+@ApiTags('users')
+@ApiBearerAuth('access-token')
 @Controller('api/users')
 @UseGuards(AuthGuard('jwt'), RolesGuard, PermissionsGuard)
 export class UsersController {
@@ -26,14 +35,34 @@ export class UsersController {
 
   @Post()
   @Permissions('create_user')
-  create(@Body() createUserDto: CreateUserDto) {
-    return this.usersService.create(createUserDto);
+  create(
+    @Body() dto: CreateUserDto,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.usersService.create(dto, userId);
+  }
+
+  @Get('summary')
+  @Permissions('view_dashboard')
+  getSummary() {
+    return this.usersService.getSummary();
+  }
+
+  @Get('export')
+  @Permissions('manage_users')
+  async exportCsv(@Query() query: QueryUsersDto, @Res() res: Response) {
+    const csv = await this.usersService.exportCsv(query);
+    res.set({
+      'Content-Type': 'text/csv',
+      'Content-Disposition': `attachment; filename=users-export-${Date.now()}.csv`,
+    });
+    res.send(csv);
   }
 
   @Get()
   @Permissions('manage_users')
-  findAll() {
-    return this.usersService.findAll();
+  findAll(@Query() query: QueryUsersDto) {
+    return this.usersService.findAll(query);
   }
 
   @Get(':id')
@@ -46,24 +75,54 @@ export class UsersController {
   @Permissions('manage_users')
   update(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() updateUserDto: UpdateUserDto,
+    @Body() dto: UpdateUserDto,
   ) {
-    return this.usersService.update(id, updateUserDto);
+    return this.usersService.update(id, dto);
   }
 
-  @Delete(':id')
-  @Roles('Super Admin')
-  remove(@Param('id', ParseUUIDPipe) id: string) {
-    return this.usersService.remove(id);
+  @Patch(':id/disable')
+  @Permissions('manage_users')
+  disable(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.usersService.disable(id, userId);
+  }
+
+  @Patch(':id/enable')
+  @Permissions('manage_users')
+  enable(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.usersService.enable(id, userId);
+  }
+
+  @Patch(':id/archive')
+  @Permissions('manage_users')
+  archive(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.usersService.archive(id, userId);
+  }
+
+  @Post(':id/resend-invite')
+  @Permissions('manage_users')
+  resendInvite(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.usersService.resendInvite(id, userId);
   }
 
   @Post(':id/roles')
   @Permissions('manage_roles')
   assignRole(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() assignRoleDto: AssignRoleDto,
+    @Body() dto: AssignRoleDto,
   ) {
-    return this.usersService.assignRole(id, assignRoleDto.role_id);
+    return this.usersService.assignRole(id, dto.role_id);
   }
 
   @Delete(':id/roles/:roleId')

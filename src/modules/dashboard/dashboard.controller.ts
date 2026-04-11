@@ -5,7 +5,10 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { Permissions } from '../../common/decorators/permissions.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
+@ApiTags('dashboard')
+@ApiBearerAuth('access-token')
 @Controller('api/dashboard')
 @UseGuards(AuthGuard('jwt'), RolesGuard, PermissionsGuard)
 export class DashboardController {
