@@ -1,0 +1,45 @@
+import { Module } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
+import { getDatabaseConfig } from './config/database.config';
+import { GlobalExceptionFilter } from './common/filters/http-exception.filter';
+import { ActivityLogInterceptor } from './common/interceptors/activity-log.interceptor';
+import { ActivityLog } from './database/entities/activity-log.entity';
+import { AuthModule } from './modules/auth/auth.module';
+import { UsersModule } from './modules/users/users.module';
+import { CompaniesModule } from './modules/companies/companies.module';
+import { TeamMembersModule } from './modules/team-members/team-members.module';
+import { RolesPermissionsModule } from './modules/roles-permissions/roles-permissions.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { ActivityLogModule } from './modules/activity-log/activity-log.module';
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+    TypeOrmModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: getDatabaseConfig,
+      inject: [ConfigService],
+    }),
+    TypeOrmModule.forFeature([ActivityLog]),
+    AuthModule,
+    UsersModule,
+    CompaniesModule,
+    TeamMembersModule,
+    RolesPermissionsModule,
+    DashboardModule,
+    ActivityLogModule,
+  ],
+  providers: [
+    {
+      provide: APP_FILTER,
+      useClass: GlobalExceptionFilter,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: ActivityLogInterceptor,
+    },
+  ],
+})
+export class AppModule {}
