@@ -8,6 +8,8 @@ export type InviteEmailOptions = {
   lastName: string;
   invitedByLabel?: string;
   appName?: string;
+  /** Shown in the email so the user can sign in (invite + resend-invite). */
+  tempPassword?: string;
 };
 
 @Injectable()
@@ -15,6 +17,8 @@ export class MailService {
   private readonly logger = new Logger(MailService.name);
   private readonly transporter: Transporter;
   private readonly from: string;
+  /** When set (e.g. Resend sandbox), envelope goes here; body still shows the real invitee email. */
+  private readonly smtpRedirectTo: string | undefined;
 
   constructor(private readonly config: ConfigService) {
     const user = config.get<string>('SMTP_USER')?.trim();
@@ -38,6 +42,12 @@ export class MailService {
     });
     this.from =
       config.get<string>('SMTP_FROM') || `"Maritime ETSS" <noreply@etss.local>`;
+    this.smtpRedirectTo = config.get<string>('SMTP_REDIRECT_TO')?.trim() || undefined;
+    if (this.smtpRedirectTo) {
+      this.logger.warn(
+        `SMTP_REDIRECT_TO is set (${this.smtpRedirectTo}) — all mail envelopes go there; templates still show the intended recipient.`,
+      );
+    }
   }
 
   async sendWelcomeEmail(to: string, displayName: string): Promise<void> {
@@ -56,16 +66,33 @@ export class MailService {
       ? ` by ${options.invitedByLabel}`
       : '';
     const subject = `You have been invited to ${appName}`;
+    const credsBlock = options.tempPassword
+      ? `
+
+Sign in with:
+  • Email: ${to}
+  • Temporary password: ${options.tempPassword}
+
+Change your password after signing in if the app offers that option.`
+      : `
+
+Sign in with the email address this message was sent to, using the credentials your administrator provided.`;
     const text = `Hi ${options.firstName} ${options.lastName},
 
-You have been invited to join ${appName}${inviter}.
-
-Sign in with the email address this message was sent to, using the credentials your administrator provided.
+You have been invited to join ${appName}${inviter}.${credsBlock}
 
 — ${appName}`;
+    const credsHtml = options.tempPassword
+      ? `<p><strong>Sign in with:</strong></p>
+<ul>
+<li>Email: ${this.escapeHtml(to)}</li>
+<li>Temporary password: <code>${this.escapeHtml(options.tempPassword)}</code></li>
+</ul>
+<p>Change your password after signing in if the app offers that option.</p>`
+      : `<p>Sign in with the email address this message was sent to, using the credentials your administrator provided.</p>`;
     const html = `<p>Hi ${this.escapeHtml(options.firstName)} ${this.escapeHtml(options.lastName)},</p>
 <p>You have been invited to join <strong>${this.escapeHtml(appName)}</strong>${inviter ? ` by <strong>${this.escapeHtml(options.invitedByLabel!)}</strong>` : ''}.</p>
-<p>Sign in with the email address this message was sent to, using the credentials your administrator provided.</p>
+${credsHtml}
 <p>— ${this.escapeHtml(appName)}</p>`;
     await this.send({ to, subject, text, html });
   }
@@ -76,16 +103,28 @@ Sign in with the email address this message was sent to, using the credentials y
     text: string;
     html: string;
   }): Promise<void> {
+    const envelopeTo = this.smtpRedirectTo ?? mail.to;
+    if (this.smtpRedirectTo && this.smtpRedirectTo !== mail.to) {
+      this.logger.log(
+        `SMTP envelope → ${envelopeTo} (intended recipient ${mail.to})`,
+      );
+    }
     try {
       await this.transporter.sendMail({
         from: this.from,
-        to: mail.to,
+        to: envelopeTo,
         subject: mail.subject,
         text: mail.text,
         html: mail.html,
       });
-    } catch (err) {
-      this.logger.error(`Failed to send mail to ${mail.to}`, err);
+    } catch (err: any) {
+      const code = err?.responseCode ?? err?.code;
+      this.logger.error(`Failed to send mail (envelope ${envelopeTo})`, err);
+      if (code === 550 || err?.message?.includes('550')) {
+        this.logger.error(
+          'SMTP 550 often means Resend sandbox: verify a domain at resend.com/domains, use a From address on that domain, or set SMTP_REDIRECT_TO to your Resend-account email for local testing.',
+        );
+      }
       throw err;
     }
   }

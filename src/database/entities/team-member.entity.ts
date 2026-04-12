@@ -10,7 +10,6 @@ import {
 } from 'typeorm';
 import { Company } from './company.entity';
 import { User } from './user.entity';
-import { TeamMemberRole } from './team-member-role.entity';
 import { Exclude } from 'class-transformer';
 
 @Entity('team_members')
@@ -47,12 +46,6 @@ export class TeamMember {
   @ManyToOne(() => User, (user) => user.created_team_members)
   @JoinColumn({ name: 'created_by' })
   created_by_user: User;
-
-  @OneToMany(
-    () => TeamMemberRole,
-    (teamMemberRole) => teamMemberRole.team_member,
-  )
-  team_member_roles: TeamMemberRole[];
 
   @CreateDateColumn()
   created_at: Date;

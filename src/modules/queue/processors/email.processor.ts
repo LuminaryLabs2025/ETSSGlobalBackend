@@ -30,6 +30,7 @@ export class EmailProcessor extends WorkerHost {
         firstName: data.firstName,
         lastName: data.lastName,
         invitedByLabel: data.invitedByLabel,
+        tempPassword: data.tempPassword,
       });
       return;
     }

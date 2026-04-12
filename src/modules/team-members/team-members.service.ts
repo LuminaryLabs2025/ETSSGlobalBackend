@@ -2,161 +2,458 @@ import {
   Injectable,
   ConflictException,
   NotFoundException,
+  BadRequestException,
   ForbiddenException,
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import * as bcrypt from 'bcrypt';
-import { TeamMember } from '../../database/entities/team-member.entity';
-import { TeamMemberRole } from '../../database/entities/team-member-role.entity';
-import { Role } from '../../database/entities/role.entity';
+import * as crypto from 'crypto';
+import { User } from '../../database/entities/user.entity';
+import { UserType } from '../../database/entities/user-type.entity';
+import { Company } from '../../database/entities/company.entity';
+import { UserPermission } from '../../database/entities/user-permission.entity';
+import { UserTypePermission } from '../../database/entities/user-type-permission.entity';
+import { Permission } from '../../database/entities/permission.entity';
 import { CreateTeamMemberDto } from './dto/create-team-member.dto';
+import { QueryTeamMembersDto } from './dto/query-team-members.dto';
+import {
+  AccountType,
+  UserStatus,
+  UserTypeCategory,
+} from '../../common/enums';
+import { normalizeEmail } from '../../common/utils/email-normalize';
 import { EMAIL_QUEUE, JOB_INVITE_EMAIL } from '../queue/queue.constants';
-import type { InviteEmailJobData } from '../queue/types/email-jobs.types';
+
+type RequestActor = {
+  id: string;
+  is_super_admin?: boolean;
+  company_id?: string | null;
+};
 
 @Injectable()
 export class TeamMembersService {
   private readonly logger = new Logger(TeamMembersService.name);
 
   constructor(
-    @InjectRepository(TeamMember)
-    private readonly teamMemberRepository: Repository<TeamMember>,
-    @InjectRepository(TeamMemberRole)
-    private readonly teamMemberRoleRepository: Repository<TeamMemberRole>,
-    @InjectRepository(Role)
-    private readonly roleRepository: Repository<Role>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+    @InjectRepository(UserType)
+    private readonly userTypeRepository: Repository<UserType>,
+    @InjectRepository(Company)
+    private readonly companyRepository: Repository<Company>,
+    @InjectRepository(UserPermission)
+    private readonly userPermissionRepository: Repository<UserPermission>,
+    @InjectRepository(UserTypePermission)
+    private readonly userTypePermissionRepository: Repository<UserTypePermission>,
+    @InjectRepository(Permission)
+    private readonly permissionRepository: Repository<Permission>,
     @InjectQueue(EMAIL_QUEUE)
     private readonly emailQueue: Queue,
   ) {}
 
   async create(
-    createDto: CreateTeamMemberDto,
-    createdBy: string,
-    companyId: string,
-    invitedByEmail?: string,
-  ): Promise<TeamMember> {
-    if (!companyId) {
-      throw new ForbiddenException(
-        'You must belong to a company to create team members',
-      );
+    dto: CreateTeamMemberDto,
+    actor: RequestActor,
+    actorEmail?: string,
+  ): Promise<User> {
+    const userType = await this.userTypeRepository.findOne({
+      where: { id: dto.user_type_id },
+    });
+    if (!userType) {
+      throw new NotFoundException('User type not found');
     }
 
-    const existing = await this.teamMemberRepository.findOne({
-      where: { email: createDto.email },
+    let companyId: string | null = null;
+    if (userType.category === UserTypeCategory.EXTERNAL) {
+      companyId = actor.company_id ?? null;
+      if (!companyId) {
+        throw new BadRequestException(
+          'External user types can only be invited by accounts that belong to a company (your JWT must include company_id). Super admins inviting external members need a company-scoped session.',
+        );
+      }
+    }
+
+    this.assertActorCanManageCompany(actor, companyId);
+
+    if (companyId) {
+      const company = await this.companyRepository.findOne({
+        where: { id: companyId },
+      });
+      if (!company) throw new NotFoundException('Company not found');
+    }
+
+    const emailNorm = normalizeEmail(dto.email);
+    const existing = await this.userRepository.findOne({
+      where: { email: emailNorm },
     });
     if (existing) {
-      throw new ConflictException('Team member with this email already exists');
+      throw new ConflictException('A user with this email already exists');
     }
 
-    const hashedPassword = await bcrypt.hash(createDto.password, 12);
-    const teamMember = this.teamMemberRepository.create({
-      ...createDto,
-      password: hashedPassword,
-      company_id: companyId,
-      created_by: createdBy,
-    });
-
-    const saved = await this.teamMemberRepository.save(teamMember);
-
-    const jobPayload: InviteEmailJobData = {
-      to: saved.email,
-      firstName: saved.first_name,
-      lastName: saved.last_name,
-      invitedByLabel: invitedByEmail,
+    const { first_name, last_name } = this.splitName(dto.name);
+    const rawPassword = this.generatePassword();
+    const hashedPassword = await bcrypt.hash(rawPassword, 12);
+    const localPart = emailNorm.split('@')[0] || 'user';
+    const extra: Record<string, unknown> = {
+      username: localPart,
+      ...(dto.department?.trim()
+        ? { department: dto.department.trim() }
+        : {}),
     };
 
+    const user = this.userRepository.create({
+      first_name,
+      last_name,
+      email: emailNorm,
+      phone: dto.phone?.trim() || null,
+      password: hashedPassword,
+      user_type_id: userType.id,
+      account_type: AccountType.SUB_ACCOUNT,
+      status: UserStatus.AWAITING_ACTIVATION,
+      company_id: companyId,
+      extra_fields: extra,
+      invited_by: actor.id,
+      is_super_admin: false,
+    } as Partial<User>);
+
+    const saved = (await this.userRepository.save(user)) as User;
+
+    await this.assignDirectPermissions(
+      saved.id,
+      userType.id,
+      dto.permission_ids,
+      !!actor.is_super_admin,
+    );
+
     try {
-      await this.emailQueue.add(JOB_INVITE_EMAIL, jobPayload, {
-        removeOnComplete: true,
-        attempts: 3,
-        backoff: { type: 'exponential', delay: 2000 },
-      });
+      await this.emailQueue.add(
+        JOB_INVITE_EMAIL,
+        {
+          to: saved.email,
+          firstName: saved.first_name,
+          lastName: saved.last_name,
+          tempPassword: rawPassword,
+          userType: userType.name,
+          invitedByLabel: actorEmail,
+        },
+        {
+          removeOnComplete: true,
+          attempts: 3,
+          backoff: { type: 'exponential', delay: 2000 },
+        },
+      );
     } catch (err) {
-      this.logger.error(
-        `Failed to enqueue invite email for ${saved.email}`,
-        err,
+      this.logger.error(`Failed to enqueue team member invite for ${saved.email}`, err);
+    }
+
+    return this.findOne(saved.id, actor);
+  }
+
+  async findAll(query: QueryTeamMembersDto, actor: RequestActor) {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+    const qb = this.buildScopedQuery(actor)
+      .leftJoinAndSelect('user.user_type', 'userType')
+      .leftJoinAndSelect('user.company', 'company');
+
+    if (query.user_type_id) {
+      qb.andWhere('user.user_type_id = :utid', { utid: query.user_type_id });
+    }
+    if (query.status) {
+      qb.andWhere('user.status = :st', { st: query.status });
+    }
+    if (query.company_id) {
+      if (!actor.is_super_admin) {
+        throw new ForbiddenException('Only Super Admin may filter by company');
+      }
+      qb.andWhere('user.company_id = :fcid', { fcid: query.company_id });
+    }
+    if (query.date_from) {
+      qb.andWhere('user.created_at >= :df', { df: new Date(query.date_from) });
+    }
+    if (query.date_to) {
+      const end = new Date(query.date_to);
+      end.setHours(23, 59, 59, 999);
+      qb.andWhere('user.created_at <= :dt', { dt: end });
+    }
+    if (query.search?.trim()) {
+      const s = `%${query.search.trim()}%`;
+      qb.andWhere(
+        '(user.first_name ILIKE :s OR user.last_name ILIKE :s OR user.email ILIKE :s OR CONCAT(user.first_name, \' \', user.last_name) ILIKE :s)',
+        { s },
       );
     }
 
-    return saved;
-  }
+    qb.orderBy('user.created_at', 'DESC');
+    const total = await qb.clone().getCount();
+    qb.skip((page - 1) * limit).take(limit);
+    const rows = await qb.getMany();
 
-  async findAllByCompany(companyId: string): Promise<TeamMember[]> {
-    return this.teamMemberRepository.find({
-      where: { company_id: companyId },
-      relations: ['team_member_roles', 'team_member_roles.role'],
-      select: {
-        id: true,
-        first_name: true,
-        last_name: true,
-        email: true,
-        is_active: true,
-        company_id: true,
-        created_by: true,
-        created_at: true,
-        updated_at: true,
+    return {
+      data: rows.map((u) => this.toListRow(u)),
+      meta: {
+        total,
+        page,
+        limit,
+        total_pages: Math.ceil(total / limit),
       },
-    });
+    };
   }
 
-  async findOne(id: string): Promise<TeamMember> {
-    const teamMember = await this.teamMemberRepository.findOne({
-      where: { id },
+  async getSummary(actor: RequestActor) {
+    const base = this.buildScopedQuery(actor);
+    const total = await base.clone().getCount();
+    const active = await base
+      .clone()
+      .andWhere('user.status = :st', { st: UserStatus.ACTIVE })
+      .getCount();
+    const inactive = await base
+      .clone()
+      .andWhere('user.status = :st', { st: UserStatus.INACTIVE })
+      .getCount();
+    const awaiting = await base
+      .clone()
+      .andWhere('user.status = :st', { st: UserStatus.AWAITING_ACTIVATION })
+      .getCount();
+    const archived = await base
+      .clone()
+      .andWhere('user.status = :st', { st: UserStatus.ARCHIVED })
+      .getCount();
+
+    const byType = await this.buildScopedQuery(actor)
+      .leftJoin('user.user_type', 'ut')
+      .select('ut.name', 'user_type')
+      .addSelect('COUNT(user.id)', 'count')
+      .groupBy('ut.name')
+      .getRawMany();
+
+    return {
+      total,
+      active,
+      inactive,
+      awaiting_activation: awaiting,
+      archived,
+      by_user_type: byType.map((r) => ({
+        user_type: r.user_type ?? 'Unassigned',
+        count: parseInt(r.count, 10),
+      })),
+    };
+  }
+
+  async findOne(id: string, actor: RequestActor): Promise<User> {
+    const user = await this.userRepository.findOne({
+      where: { id, account_type: AccountType.SUB_ACCOUNT },
       relations: [
+        'user_type',
         'company',
-        'team_member_roles',
-        'team_member_roles.role',
-        'team_member_roles.role.role_permissions',
-        'team_member_roles.role.role_permissions.permission',
+        'user_permissions',
+        'user_permissions.permission',
       ],
     });
-    if (!teamMember) {
-      throw new NotFoundException('Team member not found');
-    }
-    return teamMember;
+    if (!user) throw new NotFoundException('Team member not found');
+    this.assertActorCanAccessUser(actor, user);
+    return this.sanitizeUser(user);
   }
 
-  async remove(id: string): Promise<void> {
-    const teamMember = await this.findOne(id);
-    await this.teamMemberRepository.remove(teamMember);
+  async disable(id: string, actor: RequestActor): Promise<User> {
+    const user = await this.getSubAccountOrThrow(id, actor);
+    user.status = UserStatus.INACTIVE;
+    await this.userRepository.save(user);
+    return this.findOne(id, actor);
   }
 
-  async assignRole(
-    teamMemberId: string,
-    roleId: string,
-  ): Promise<TeamMemberRole> {
-    await this.findOne(teamMemberId);
-
-    const role = await this.roleRepository.findOne({ where: { id: roleId } });
-    if (!role) {
-      throw new NotFoundException('Role not found');
-    }
-
-    const existing = await this.teamMemberRoleRepository.findOne({
-      where: { team_member_id: teamMemberId, role_id: roleId },
-    });
-    if (existing) {
-      throw new ConflictException('Role already assigned to this team member');
-    }
-
-    const tmRole = this.teamMemberRoleRepository.create({
-      team_member_id: teamMemberId,
-      role_id: roleId,
-    });
-
-    return this.teamMemberRoleRepository.save(tmRole);
+  async enable(id: string, actor: RequestActor): Promise<User> {
+    const user = await this.getSubAccountOrThrow(id, actor);
+    user.status = UserStatus.ACTIVE;
+    await this.userRepository.save(user);
+    return this.findOne(id, actor);
   }
 
-  async removeRole(teamMemberId: string, roleId: string): Promise<void> {
-    const tmRole = await this.teamMemberRoleRepository.findOne({
-      where: { team_member_id: teamMemberId, role_id: roleId },
-    });
-    if (!tmRole) {
-      throw new NotFoundException('Role assignment not found');
+  async archive(id: string, actor: RequestActor): Promise<User> {
+    const user = await this.getSubAccountOrThrow(id, actor);
+    user.status = UserStatus.ARCHIVED;
+    await this.userRepository.save(user);
+    return this.findOne(id, actor);
+  }
+
+  async resendInvite(id: string, actor: RequestActor): Promise<{ sent: true }> {
+    const user = await this.getSubAccountOrThrow(id, actor);
+    const newPassword = this.generatePassword();
+    user.password = await bcrypt.hash(newPassword, 12);
+    user.status = UserStatus.AWAITING_ACTIVATION;
+    await this.userRepository.save(user);
+
+    try {
+      await this.emailQueue.add(
+        JOB_INVITE_EMAIL,
+        {
+          to: user.email,
+          firstName: user.first_name,
+          lastName: user.last_name,
+          tempPassword: newPassword,
+          userType: user.user_type?.name,
+        },
+        {
+          removeOnComplete: true,
+          attempts: 3,
+          backoff: { type: 'exponential', delay: 2000 },
+        },
+      );
+    } catch (err) {
+      this.logger.error(`Failed to enqueue re-invite for ${user.email}`, err);
     }
-    await this.teamMemberRoleRepository.remove(tmRole);
+
+    return { sent: true };
+  }
+
+  // ─── Helpers ───
+
+  private buildScopedQuery(actor: RequestActor) {
+    const qb = this.userRepository
+      .createQueryBuilder('user')
+      .where('user.account_type = :sub', { sub: AccountType.SUB_ACCOUNT });
+
+    if (!actor.is_super_admin) {
+      if (!actor.company_id) {
+        qb.andWhere('1 = 0');
+      } else {
+        qb.andWhere('user.company_id = :cid', { cid: actor.company_id });
+      }
+    }
+
+    return qb;
+  }
+
+  private assertActorCanManageCompany(
+    actor: RequestActor,
+    companyId: string | null,
+  ) {
+    if (actor.is_super_admin) return;
+    if (companyId == null) {
+      throw new ForbiddenException(
+        'Only Super Admin can create system team members (no company)',
+      );
+    }
+    if (actor.company_id !== companyId) {
+      throw new ForbiddenException(
+        'You can only create team members for your own company',
+      );
+    }
+  }
+
+  private assertActorCanAccessUser(actor: RequestActor, user: User) {
+    if (actor.is_super_admin) return;
+    if (!actor.company_id || user.company_id !== actor.company_id) {
+      throw new ForbiddenException('Access denied');
+    }
+  }
+
+  private async getSubAccountOrThrow(
+    id: string,
+    actor: RequestActor,
+  ): Promise<User> {
+    const user = await this.userRepository.findOne({
+      where: { id, account_type: AccountType.SUB_ACCOUNT },
+      relations: ['user_type', 'company'],
+    });
+    if (!user) throw new NotFoundException('Team member not found');
+    this.assertActorCanAccessUser(actor, user);
+    return user;
+  }
+
+  private splitName(name: string): { first_name: string; last_name: string } {
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) {
+      return { first_name: 'Team', last_name: 'Member' };
+    }
+    if (parts.length === 1) {
+      return { first_name: parts[0], last_name: parts[0] };
+    }
+    return {
+      first_name: parts[0],
+      last_name: parts.slice(1).join(' '),
+    };
+  }
+
+  private generatePassword(): string {
+    return crypto.randomBytes(6).toString('base64url').slice(0, 12);
+  }
+
+  /**
+   * Stores explicit grants on the user. Empty `permissionIds` → all permissions
+   * allowed for that user type (from `user_type_permissions`). Super admin may
+   * assign any permission IDs when `bypassValidation` is true.
+   */
+  private async assignDirectPermissions(
+    userId: string,
+    userTypeId: string,
+    permissionIds: string[] | undefined,
+    bypassValidation: boolean,
+  ): Promise<void> {
+    const links = await this.userTypePermissionRepository.find({
+      where: { user_type_id: userTypeId },
+    });
+    const allowedIds = new Set(links.map((l) => l.permission_id));
+
+    let chosen: string[];
+    if (permissionIds?.length) {
+      const unique = [...new Set(permissionIds)];
+      if (!bypassValidation) {
+        for (const id of unique) {
+          if (!allowedIds.has(id)) {
+            throw new BadRequestException(
+              'One or more permissions are not allowed for this user type',
+            );
+          }
+        }
+      }
+      chosen = unique;
+    } else {
+      chosen = [...allowedIds];
+    }
+
+    if (chosen.length === 0) return;
+
+    const found = await this.permissionRepository.count({
+      where: { id: In(chosen) },
+    });
+    if (found !== chosen.length) {
+      throw new BadRequestException('One or more permission_ids are invalid');
+    }
+
+    const rows = chosen.map((permission_id) =>
+      this.userPermissionRepository.create({ user_id: userId, permission_id }),
+    );
+    await this.userPermissionRepository.save(rows);
+  }
+
+  private toListRow(user: User) {
+    const dept =
+      (user.extra_fields?.department as string | undefined) ?? null;
+    return {
+      id: user.id,
+      name: `${user.first_name} ${user.last_name}`.trim(),
+      email: user.email,
+      phone: user.phone ?? null,
+      user_type: user.user_type
+        ? { id: user.user_type.id, name: user.user_type.name }
+        : null,
+      status: user.status,
+      account_type: user.account_type,
+      company: user.company
+        ? { id: user.company.id, name: user.company.name }
+        : null,
+      department: dept,
+      created_at: user.created_at,
+    };
+  }
+
+  private sanitizeUser(user: User): User {
+    const { password, ...rest } = user as any;
+    return rest as User;
   }
 }

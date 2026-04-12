@@ -1,32 +1,37 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Raw, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { User } from '../../database/entities/user.entity';
+import { Permission } from '../../database/entities/permission.entity';
 import { LoginDto } from './dto/login.dto';
 import { JwtPayload } from '../../common/interfaces/jwt-payload.interface';
 import { UserStatus } from '../../common/enums';
+import { normalizeEmail } from '../../common/utils/email-normalize';
 
 @Injectable()
 export class AuthService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(Permission)
+    private readonly permissionRepository: Repository<Permission>,
     private readonly jwtService: JwtService,
   ) {}
 
   async login(loginDto: LoginDto) {
-    const { email, password } = loginDto;
+    const { password } = loginDto;
+    const emailNorm = normalizeEmail(loginDto.email);
 
     const user = await this.userRepository.findOne({
-      where: { email },
+      where: {
+        email: Raw((alias) => `LOWER(TRIM(${alias})) = :e`, { e: emailNorm }),
+      },
       relations: [
         'user_type',
-        'user_roles',
-        'user_roles.role',
-        'user_roles.role.role_permissions',
-        'user_roles.role.role_permissions.permission',
+        'user_permissions',
+        'user_permissions.permission',
       ],
     });
 
@@ -46,15 +51,18 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const roles = user.user_roles?.map((ur) => ur.role.name) || [];
-    const permissions = this.extractPermissions(user);
+    if (user.status === UserStatus.AWAITING_ACTIVATION) {
+      user.status = UserStatus.ACTIVE;
+      await this.userRepository.save(user);
+    }
+
+    const permissions = await this.resolvePermissionNames(user);
 
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
       is_super_admin: user.is_super_admin,
       company_id: user.company_id,
-      roles,
       permissions,
     };
 
@@ -72,21 +80,23 @@ export class AuthService {
           ? { id: user.user_type.id, name: user.user_type.name }
           : null,
         company_id: user.company_id,
-        roles,
         permissions,
       },
     };
   }
 
-  private extractPermissions(user: User): string[] {
-    const permissionsSet = new Set<string>();
-    user.user_roles?.forEach((ur) => {
-      ur.role?.role_permissions?.forEach((rp) => {
-        if (rp.permission?.name) {
-          permissionsSet.add(rp.permission.name);
-        }
+  private async resolvePermissionNames(user: User): Promise<string[]> {
+    if (user.is_super_admin) {
+      const rows = await this.permissionRepository.find({
+        select: ['name'],
+        order: { name: 'ASC' },
       });
+      return rows.map((r) => r.name);
+    }
+    const set = new Set<string>();
+    user.user_permissions?.forEach((up) => {
+      if (up.permission?.name) set.add(up.permission.name);
     });
-    return Array.from(permissionsSet);
+    return Array.from(set);
   }
 }

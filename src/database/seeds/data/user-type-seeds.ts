@@ -444,10 +444,7 @@ export const USER_TYPE_SEEDS: UserTypeSeed[] = [
           label: 'Location / Beat',
           type: 'multi-select',
           required: true,
-          options: [
-            opt('Apapa', 'apapa'),
-            opt('Tincan', 'tincan'),
-          ],
+          options: [opt('Apapa', 'apapa'), opt('Tincan', 'tincan')],
         },
       ],
     },
@@ -466,7 +463,8 @@ export const USER_TYPE_SEEDS: UserTypeSeed[] = [
           required: true,
           options: [],
           optionsSource: 'barrier_locations',
-          placeholder: 'Select from dropdown of all CREATED BARRIER ID/Locations',
+          placeholder:
+            'Select from dropdown of all CREATED BARRIER ID/Locations',
         },
         {
           name: 'barrier_location',
@@ -481,10 +479,7 @@ export const USER_TYPE_SEEDS: UserTypeSeed[] = [
           label: 'Entry / Exit Barrier',
           type: 'select',
           required: true,
-          options: [
-            opt('Entry', 'entry'),
-            opt('Exit', 'exit'),
-          ],
+          options: [opt('Entry', 'entry'), opt('Exit', 'exit')],
         },
         {
           name: 'operator_name',

@@ -15,19 +15,15 @@ import { validate as isUuid } from 'uuid';
 import { User } from '../../database/entities/user.entity';
 import { UserType } from '../../database/entities/user-type.entity';
 import { Company } from '../../database/entities/company.entity';
-import { UserRole } from '../../database/entities/user-role.entity';
-import { Role } from '../../database/entities/role.entity';
-import { ActivityLog } from '../../database/entities/activity-log.entity';
+import { UserPermission } from '../../database/entities/user-permission.entity';
+import { UserTypePermission } from '../../database/entities/user-type-permission.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { QueryUsersDto } from './dto/query-users.dto';
-import {
-  AccountType,
-  UserStatus,
-  UserTypeCategory,
-} from '../../common/enums';
+import { AccountType, UserStatus, UserTypeCategory } from '../../common/enums';
 import { MetadataValidatorService } from '../../common/services/metadata-validator.service';
 import { EMAIL_QUEUE, JOB_INVITE_EMAIL } from '../queue/queue.constants';
+import { normalizeEmail } from '../../common/utils/email-normalize';
 
 @Injectable()
 export class UsersService {
@@ -40,12 +36,10 @@ export class UsersService {
     private readonly userTypeRepository: Repository<UserType>,
     @InjectRepository(Company)
     private readonly companyRepository: Repository<Company>,
-    @InjectRepository(UserRole)
-    private readonly userRoleRepository: Repository<UserRole>,
-    @InjectRepository(Role)
-    private readonly roleRepository: Repository<Role>,
-    @InjectRepository(ActivityLog)
-    private readonly activityLogRepository: Repository<ActivityLog>,
+    @InjectRepository(UserPermission)
+    private readonly userPermissionRepository: Repository<UserPermission>,
+    @InjectRepository(UserTypePermission)
+    private readonly userTypePermissionRepository: Repository<UserTypePermission>,
     private readonly metadataValidator: MetadataValidatorService,
     @InjectQueue(EMAIL_QUEUE)
     private readonly emailQueue: Queue,
@@ -59,8 +53,9 @@ export class UsersService {
       throw new NotFoundException('User type not found');
     }
 
+    const emailNorm = normalizeEmail(dto.email);
     const existingUser = await this.userRepository.findOne({
-      where: { email: dto.email },
+      where: { email: emailNorm },
     });
     if (existingUser) {
       throw new ConflictException('A user with this email already exists');
@@ -89,7 +84,7 @@ export class UsersService {
     const user = this.userRepository.create({
       first_name: dto.first_name,
       last_name: dto.last_name,
-      email: dto.email,
+      email: emailNorm,
       phone: dto.phone,
       password: hashedPassword,
       user_type_id: userType.id,
@@ -101,15 +96,9 @@ export class UsersService {
       is_super_admin: false,
     } as Partial<User>);
 
-    const saved = await this.userRepository.save(user) as User;
+    const saved = (await this.userRepository.save(user)) as User;
 
-    await this.logActivity(
-      createdById || null,
-      'CREATE_USER',
-      'users',
-      saved.id,
-      { user_type: userType.name, email: saved.email },
-    );
+    await this.copyTypePermissionsToUser(saved.id, userType.id);
 
     try {
       await this.emailQueue.add(
@@ -145,9 +134,7 @@ export class UsersService {
     const qb = this.userRepository
       .createQueryBuilder('user')
       .leftJoinAndSelect('user.user_type', 'userType')
-      .leftJoinAndSelect('user.company', 'company')
-      .leftJoinAndSelect('user.user_roles', 'userRoles')
-      .leftJoinAndSelect('userRoles.role', 'role');
+      .leftJoinAndSelect('user.company', 'company');
 
     if (query.user_type_id) {
       qb.andWhere('user.user_type_id = :userTypeId', {
@@ -239,10 +226,8 @@ export class UsersService {
       relations: [
         'user_type',
         'company',
-        'user_roles',
-        'user_roles.role',
-        'user_roles.role.role_permissions',
-        'user_roles.role.role_permissions.permission',
+        'user_permissions',
+        'user_permissions.permission',
       ],
     });
     if (!user) {
@@ -269,7 +254,6 @@ export class UsersService {
     const user = await this.findOne(id);
     user.status = UserStatus.INACTIVE;
     await this.userRepository.save(user);
-    await this.logActivity(actionBy, 'DISABLE_USER', 'users', id);
     return user;
   }
 
@@ -277,7 +261,6 @@ export class UsersService {
     const user = await this.findOne(id);
     user.status = UserStatus.ACTIVE;
     await this.userRepository.save(user);
-    await this.logActivity(actionBy, 'ENABLE_USER', 'users', id);
     return user;
   }
 
@@ -285,7 +268,6 @@ export class UsersService {
     const user = await this.findOne(id);
     user.status = UserStatus.ARCHIVED;
     await this.userRepository.save(user);
-    await this.logActivity(actionBy, 'ARCHIVE_USER', 'users', id);
     return user;
   }
 
@@ -317,7 +299,6 @@ export class UsersService {
       this.logger.error(`Failed to enqueue re-invite for ${user.email}`, err);
     }
 
-    await this.logActivity(actionBy, 'RESEND_INVITE', 'users', id);
     return { sent: true };
   }
 
@@ -393,32 +374,24 @@ export class UsersService {
     return [headers.join(','), ...rows].join('\n');
   }
 
-  async assignRole(userId: string, roleId: string): Promise<UserRole> {
-    await this.findOne(userId);
-    const role = await this.roleRepository.findOne({ where: { id: roleId } });
-    if (!role) throw new NotFoundException('Role not found');
-
-    const existing = await this.userRoleRepository.findOne({
-      where: { user_id: userId, role_id: roleId },
+  /** Default grants for a new user: full set allowed for their user type. */
+  async copyTypePermissionsToUser(
+    userId: string,
+    userTypeId: string,
+  ): Promise<void> {
+    const links = await this.userTypePermissionRepository.find({
+      where: { user_type_id: userTypeId },
     });
-    if (existing) {
-      throw new ConflictException('Role already assigned to this user');
-    }
-
-    return this.userRoleRepository.save(
-      this.userRoleRepository.create({ user_id: userId, role_id: roleId }),
+    const rows = links.map((link) =>
+      this.userPermissionRepository.create({
+        user_id: userId,
+        permission_id: link.permission_id,
+      }),
     );
+    if (rows.length) {
+      await this.userPermissionRepository.save(rows);
+    }
   }
-
-  async removeRole(userId: string, roleId: string): Promise<void> {
-    const userRole = await this.userRoleRepository.findOne({
-      where: { user_id: userId, role_id: roleId },
-    });
-    if (!userRole) throw new NotFoundException('Role assignment not found');
-    await this.userRoleRepository.remove(userRole);
-  }
-
-  // ─── Private helpers ───
 
   private async createOrFindCompany(
     dto: CreateUserDto,
@@ -456,26 +429,5 @@ export class UsersService {
       return `"${value.replace(/"/g, '""')}"`;
     }
     return value;
-  }
-
-  private async logActivity(
-    userId: string | null,
-    action: string,
-    entity: string,
-    entityId: string,
-    metadata?: Record<string, any>,
-  ) {
-    try {
-      const log = this.activityLogRepository.create({
-        user_id: userId,
-        action,
-        entity,
-        entity_id: entityId,
-        metadata: metadata || null,
-      } as Partial<ActivityLog>);
-      await this.activityLogRepository.save(log);
-    } catch {
-      // never break the request for logging failures
-    }
   }
 }

@@ -10,9 +10,9 @@ import {
 } from 'typeorm';
 import { Company } from './company.entity';
 import { UserType } from './user-type.entity';
-import { UserRole } from './user-role.entity';
+import { UserPermission } from './user-permission.entity';
 import { TeamMember } from './team-member.entity';
-import { ActivityLog } from './activity-log.entity';
+import type { ActivityLog } from './activity-log.entity';
 import { Exclude } from 'class-transformer';
 import { AccountType, UserStatus } from '../../common/enums';
 
@@ -74,13 +74,14 @@ export class User {
   @JoinColumn({ name: 'invited_by' })
   invited_by_user: User;
 
-  @OneToMany(() => UserRole, (userRole) => userRole.user)
-  user_roles: UserRole[];
+  @OneToMany(() => UserPermission, (up) => up.user)
+  user_permissions: UserPermission[];
 
   @OneToMany(() => TeamMember, (teamMember) => teamMember.created_by_user)
   created_team_members: TeamMember[];
 
-  @OneToMany(() => ActivityLog, (log) => log.user)
+  /** String form avoids circular import with `activity-log.entity` at load time. */
+  @OneToMany('ActivityLog', 'user')
   activity_logs: ActivityLog[];
 
   @CreateDateColumn()

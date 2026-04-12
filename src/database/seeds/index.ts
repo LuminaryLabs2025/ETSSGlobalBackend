@@ -5,10 +5,14 @@ dotenv.config();
 
 import { createSeedDataSource } from './seed-data-source';
 import { runUserTypesSeed } from './runners/user-types.runner';
+import {
+  runPermissionModulesSeed,
+  cleanupLegacyPermissionModule,
+} from './runners/permission-modules.runner';
 import { runPermissionsSeed } from './runners/permissions.runner';
-import { runRolesSeed } from './runners/roles.runner';
-import { runRolePermissionsSeed } from './runners/role-permissions.runner';
+import { runUserTypePermissionsSeed } from './runners/user-type-permissions.runner';
 import { runSuperAdminSeed } from './runners/super-admin.runner';
+import { backfillUserPermissionsFromTypes } from './runners/backfill-user-permissions.runner';
 
 async function runAllSeeds(): Promise<void> {
   console.log('🌱 Maritime ETSS — running all seeds\n');
@@ -19,10 +23,15 @@ async function runAllSeeds(): Promise<void> {
 
   try {
     const userTypeMap = await runUserTypesSeed(dataSource);
-    const permissionMap = await runPermissionsSeed(dataSource);
-    const roleMap = await runRolesSeed(dataSource);
-    await runRolePermissionsSeed(dataSource, roleMap, permissionMap);
-    await runSuperAdminSeed(dataSource, userTypeMap, roleMap);
+    const permissionModuleMap = await runPermissionModulesSeed(dataSource);
+    const permissionMap = await runPermissionsSeed(
+      dataSource,
+      permissionModuleMap,
+    );
+    await cleanupLegacyPermissionModule(dataSource);
+    await runUserTypePermissionsSeed(dataSource, userTypeMap, permissionMap);
+    await runSuperAdminSeed(dataSource, userTypeMap);
+    await backfillUserPermissionsFromTypes(dataSource);
 
     console.log('\n🎉 All seeds completed successfully!');
   } finally {

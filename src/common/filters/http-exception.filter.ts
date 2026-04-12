@@ -7,10 +7,13 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
+import { ActivityLogService } from '../../modules/activity-log/activity-log.service';
 
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(GlobalExceptionFilter.name);
+
+  constructor(private readonly activityLogService: ActivityLogService) {}
 
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
@@ -18,7 +21,13 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     const request = ctx.getRequest<Request>();
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
-    let message: string | object = 'Internal server error';
+    let messageStr = 'Internal server error';
+    let body: Record<string, unknown> = {
+      statusCode: status,
+      message: messageStr,
+      timestamp: new Date().toISOString(),
+      path: request.url,
+    };
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
@@ -27,7 +36,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       if (typeof exceptionResponse === 'object' && exceptionResponse !== null) {
         const er = exceptionResponse as Record<string, unknown>;
         const msg = er.message;
-        message =
+        messageStr =
           typeof msg === 'string'
             ? msg
             : Array.isArray(msg)
@@ -41,37 +50,46 @@ export class GlobalExceptionFilter implements ExceptionFilter {
           );
         }
 
-        const body: Record<string, unknown> = {
+        body = {
           statusCode: status,
-          message,
+          message: messageStr,
           timestamp: new Date().toISOString(),
           path: request.url,
         };
         if (Array.isArray(er.errors)) {
           body.errors = er.errors;
         }
-        response.status(status).json(body);
-        return;
+      } else {
+        messageStr =
+          typeof exceptionResponse === 'string'
+            ? exceptionResponse
+            : String(
+                (exceptionResponse as { message?: string }).message ??
+                  exceptionResponse,
+              );
+        body = {
+          statusCode: status,
+          message: messageStr,
+          timestamp: new Date().toISOString(),
+          path: request.url,
+        };
       }
-
-      message =
-        typeof exceptionResponse === 'string'
-          ? exceptionResponse
-          : (exceptionResponse as any).message || exceptionResponse;
-    }
-
-    if (status === HttpStatus.INTERNAL_SERVER_ERROR) {
+    } else {
+      messageStr =
+        exception instanceof Error ? exception.message : String(exception);
+      body = {
+        statusCode: status,
+        message: messageStr,
+        timestamp: new Date().toISOString(),
+        path: request.url,
+      };
       this.logger.error(
         `${request.method} ${request.url}`,
         exception instanceof Error ? exception.stack : String(exception),
       );
     }
 
-    response.status(status).json({
-      statusCode: status,
-      message,
-      timestamp: new Date().toISOString(),
-      path: request.url,
-    });
+    void this.activityLogService.recordHttpFailure(request, status, messageStr);
+    response.status(status).json(body);
   }
 }

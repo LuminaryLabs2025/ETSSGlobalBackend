@@ -3,11 +3,10 @@ import { parseDatabaseUrl } from '../../config/parse-database-url';
 import { User } from '../entities/user.entity';
 import { Company } from '../entities/company.entity';
 import { TeamMember } from '../entities/team-member.entity';
-import { Role } from '../entities/role.entity';
+import { PermissionModule } from '../entities/permission-module.entity';
 import { Permission } from '../entities/permission.entity';
-import { RolePermission } from '../entities/role-permission.entity';
-import { UserRole } from '../entities/user-role.entity';
-import { TeamMemberRole } from '../entities/team-member-role.entity';
+import { UserTypePermission } from '../entities/user-type-permission.entity';
+import { UserPermission } from '../entities/user-permission.entity';
 import { ActivityLog } from '../entities/activity-log.entity';
 import { UserType } from '../entities/user-type.entity';
 
@@ -15,11 +14,10 @@ export const SEED_ENTITIES = [
   User,
   Company,
   TeamMember,
-  Role,
+  PermissionModule,
   Permission,
-  RolePermission,
-  UserRole,
-  TeamMemberRole,
+  UserTypePermission,
+  UserPermission,
   ActivityLog,
   UserType,
 ];

@@ -1,16 +1,27 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { BullModule } from '@nestjs/bullmq';
 import { TeamMembersService } from './team-members.service';
 import { TeamMembersController } from './team-members.controller';
-import { TeamMember } from '../../database/entities/team-member.entity';
-import { TeamMemberRole } from '../../database/entities/team-member-role.entity';
-import { Role } from '../../database/entities/role.entity';
-import { QueueModule } from '../queue/queue.module';
+import { User } from '../../database/entities/user.entity';
+import { UserType } from '../../database/entities/user-type.entity';
+import { Company } from '../../database/entities/company.entity';
+import { UserPermission } from '../../database/entities/user-permission.entity';
+import { UserTypePermission } from '../../database/entities/user-type-permission.entity';
+import { Permission } from '../../database/entities/permission.entity';
+import { EMAIL_QUEUE } from '../queue/queue.constants';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([TeamMember, TeamMemberRole, Role]),
-    QueueModule,
+    TypeOrmModule.forFeature([
+      User,
+      UserType,
+      Company,
+      UserPermission,
+      UserTypePermission,
+      Permission,
+    ]),
+    BullModule.registerQueue({ name: EMAIL_QUEUE }),
   ],
   controllers: [TeamMembersController],
   providers: [TeamMembersService],

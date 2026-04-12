@@ -7,5 +7,4 @@ export const SUPER_ADMIN_SEED = {
   first_name: process.env.SEED_SUPER_ADMIN_FIRST_NAME || 'Super',
   last_name: process.env.SEED_SUPER_ADMIN_LAST_NAME || 'Admin',
   user_type_slug: 'super-admin',
-  role_name: 'Super Admin',
 } as const;

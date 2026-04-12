@@ -18,10 +18,7 @@ import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { QueryUsersDto } from './dto/query-users.dto';
-import { AssignRoleDto } from './dto/assign-role.dto';
-import { RolesGuard } from '../../common/guards/roles.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
-import { Roles } from '../../common/decorators/roles.decorator';
 import { Permissions } from '../../common/decorators/permissions.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
@@ -29,7 +26,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 @ApiTags('users')
 @ApiBearerAuth('access-token')
 @Controller('api/users')
-@UseGuards(AuthGuard('jwt'), RolesGuard, PermissionsGuard)
+@UseGuards(AuthGuard('jwt'), PermissionsGuard)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
@@ -114,23 +111,5 @@ export class UsersController {
     @CurrentUser('id') userId: string,
   ) {
     return this.usersService.resendInvite(id, userId);
-  }
-
-  @Post(':id/roles')
-  @Permissions('manage_roles')
-  assignRole(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: AssignRoleDto,
-  ) {
-    return this.usersService.assignRole(id, dto.role_id);
-  }
-
-  @Delete(':id/roles/:roleId')
-  @Permissions('manage_roles')
-  removeRole(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Param('roleId', ParseUUIDPipe) roleId: string,
-  ) {
-    return this.usersService.removeRole(id, roleId);
   }
 }

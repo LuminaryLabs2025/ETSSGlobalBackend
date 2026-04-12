@@ -15,3 +15,9 @@ export enum UserStatus {
   AWAITING_ACTIVATION = 'AWAITING_ACTIVATION',
   ARCHIVED = 'ARCHIVED',
 }
+
+/** Outcome of an audited HTTP or domain action (activity log row). */
+export enum ActivityLogEntryStatus {
+  SUCCESS = 'SUCCESS',
+  FAILED = 'FAILED',
+}

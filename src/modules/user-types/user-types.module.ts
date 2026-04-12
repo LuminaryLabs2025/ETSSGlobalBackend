@@ -3,9 +3,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { UserTypesService } from './user-types.service';
 import { UserTypesController } from './user-types.controller';
 import { UserType } from '../../database/entities/user-type.entity';
+import { Permission } from '../../database/entities/permission.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([UserType])],
+  imports: [TypeOrmModule.forFeature([UserType, Permission])],
   controllers: [UserTypesController],
   providers: [UserTypesService],
   exports: [UserTypesService],

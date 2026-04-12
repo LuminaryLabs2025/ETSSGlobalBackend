@@ -8,6 +8,7 @@ import {
 } from 'typeorm';
 import { UserTypeCategory } from '../../common/enums';
 import { User } from './user.entity';
+import { UserTypePermission } from './user-type-permission.entity';
 
 export interface UserTypeFieldOption {
   label: string;
@@ -66,6 +67,9 @@ export class UserType {
 
   @OneToMany(() => User, (user) => user.user_type)
   users: User[];
+
+  @OneToMany(() => UserTypePermission, (utp) => utp.user_type)
+  user_type_permissions: UserTypePermission[];
 
   @CreateDateColumn()
   created_at: Date;

@@ -7,28 +7,28 @@ import {
   CreateDateColumn,
   Unique,
 } from 'typeorm';
-import { Role } from './role.entity';
+import { UserType } from './user-type.entity';
 import { Permission } from './permission.entity';
 
-@Entity('role_permissions')
-@Unique(['role_id', 'permission_id'])
-export class RolePermission {
+@Entity('user_type_permissions')
+@Unique(['user_type_id', 'permission_id'])
+export class UserTypePermission {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @Column()
-  role_id: string;
+  user_type_id: string;
 
   @Column()
   permission_id: string;
 
-  @ManyToOne(() => Role, (role) => role.role_permissions, {
+  @ManyToOne(() => UserType, (ut) => ut.user_type_permissions, {
     onDelete: 'CASCADE',
   })
-  @JoinColumn({ name: 'role_id' })
-  role: Role;
+  @JoinColumn({ name: 'user_type_id' })
+  user_type: UserType;
 
-  @ManyToOne(() => Permission, (permission) => permission.role_permissions, {
+  @ManyToOne(() => Permission, (p) => p.user_type_permission_links, {
     onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'permission_id' })

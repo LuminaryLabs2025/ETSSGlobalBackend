@@ -2,19 +2,15 @@ import { DataSource } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { User } from '../../entities/user.entity';
 import { UserType } from '../../entities/user-type.entity';
-import { Role } from '../../entities/role.entity';
-import { UserRole } from '../../entities/user-role.entity';
 import { AccountType, UserStatus } from '../../../common/enums';
 import { SUPER_ADMIN_SEED } from '../data/user-seeds';
 
 export async function runSuperAdminSeed(
   dataSource: DataSource,
   userTypeMap: Map<string, UserType>,
-  roleMap: Map<string, Role>,
 ): Promise<void> {
   console.log('\n🦸 Seeding super admin user...');
   const userRepo = dataSource.getRepository(User);
-  const userRoleRepo = dataSource.getRepository(UserRole);
 
   const superAdminType = userTypeMap.get(SUPER_ADMIN_SEED.user_type_slug);
   let adminUser = await userRepo.findOne({
@@ -45,24 +41,5 @@ export async function runSuperAdminSeed(
     } else {
       console.log(`  ⏭️  Super admin exists: ${SUPER_ADMIN_SEED.email}`);
     }
-  }
-
-  console.log('\n🎯 Assigning Super Admin role...');
-  const superAdminRole = roleMap.get(SUPER_ADMIN_SEED.role_name)!;
-  const existingUserRole = await userRoleRepo.findOne({
-    where: { user_id: adminUser!.id, role_id: superAdminRole.id },
-  });
-  if (!existingUserRole) {
-    await userRoleRepo.save(
-      userRoleRepo.create({
-        user_id: adminUser!.id,
-        role_id: superAdminRole.id,
-      }),
-    );
-    console.log(
-      `  ✅ ${SUPER_ADMIN_SEED.role_name} role assigned to ${SUPER_ADMIN_SEED.email}`,
-    );
-  } else {
-    console.log(`  ⏭️  ${SUPER_ADMIN_SEED.role_name} role already assigned`);
   }
 }
