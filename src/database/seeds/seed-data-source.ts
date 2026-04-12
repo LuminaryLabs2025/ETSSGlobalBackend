@@ -1,5 +1,6 @@
 import { DataSource } from 'typeorm';
 import { parseDatabaseUrl } from '../../config/parse-database-url';
+import { resolvePostgresSsl } from '../../config/postgres-ssl';
 import { User } from '../entities/user.entity';
 import { Company } from '../entities/company.entity';
 import { TeamMember } from '../entities/team-member.entity';
@@ -27,9 +28,13 @@ export const SEED_ENTITIES = [
  * Uses synchronize: true for bootstrap (align with existing seed behavior).
  */
 export function createSeedDataSource(): DataSource {
-  const parsed = process.env.DATABASE_URL
-    ? parseDatabaseUrl(process.env.DATABASE_URL)
-    : null;
+  const databaseUrl = process.env.DATABASE_URL;
+  const parsed = databaseUrl ? parseDatabaseUrl(databaseUrl) : null;
+
+  const ssl = resolvePostgresSsl({
+    databaseUrl,
+    databaseSslEnv: process.env.DATABASE_SSL,
+  });
 
   return new DataSource({
     type: 'postgres',
@@ -38,6 +43,7 @@ export function createSeedDataSource(): DataSource {
     username: parsed?.username ?? process.env.DB_USERNAME ?? 'postgres',
     password: parsed?.password ?? process.env.DB_PASSWORD ?? 'postgres',
     database: parsed?.database ?? process.env.DB_NAME ?? 'maritime_etss',
+    ssl,
     entities: SEED_ENTITIES,
     synchronize: true,
   });

@@ -1,12 +1,18 @@
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
 import { parseDatabaseUrl } from './parse-database-url';
+import { resolvePostgresSsl } from './postgres-ssl';
 
 export const getDatabaseConfig = (
   configService: ConfigService,
 ): TypeOrmModuleOptions => {
   const databaseUrl = configService.get<string>('DATABASE_URL');
   const parsed = databaseUrl ? parseDatabaseUrl(databaseUrl) : null;
+
+  const ssl = resolvePostgresSsl({
+    databaseUrl,
+    databaseSslEnv: configService.get<string>('DATABASE_SSL'),
+  });
 
   return {
     type: 'postgres',
@@ -18,6 +24,7 @@ export const getDatabaseConfig = (
       parsed?.password ?? configService.get<string>('DB_PASSWORD', 'postgres'),
     database:
       parsed?.database ?? configService.get<string>('DB_NAME', 'maritime_etss'),
+    ssl,
     entities: [__dirname + '/../**/*.entity{.ts,.js}'],
     migrations: [__dirname + '/../database/migrations/*{.ts,.js}'],
     synchronize: configService.get<string>('NODE_ENV') === 'development',

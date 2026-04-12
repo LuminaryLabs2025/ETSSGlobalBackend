@@ -16,4 +16,5 @@ services:
         value: production
       - key: RUN_SEED_ON_DEPLOY
         value: 'true'
-      # Add DB_*, JWT_SECRET, REDIS_*, etc. via Render dashboard or fromDatabase
+      # Add DB_*, JWT_SECRET, REDIS_*, etc. via Render dashboard or fromDatabase.
+      # Managed Postgres (e.g. Aiven): keep ?sslmode=require on DATABASE_URL, or set DATABASE_SSL=true.
