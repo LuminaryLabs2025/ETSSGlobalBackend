@@ -19,6 +19,8 @@ export class MailService {
   private readonly from: string;
   /** When set (e.g. Resend sandbox), envelope goes here; body still shows the real invitee email. */
   private readonly smtpRedirectTo: string | undefined;
+  /** Development: log full message and skip SMTP (any recipient “works”). */
+  private readonly logOnly: boolean;
 
   constructor(private readonly config: ConfigService) {
     const user = config.get<string>('SMTP_USER')?.trim();
@@ -46,6 +48,20 @@ export class MailService {
     if (this.smtpRedirectTo) {
       this.logger.warn(
         `SMTP_REDIRECT_TO is set (${this.smtpRedirectTo}) — all mail envelopes go there; templates still show the intended recipient.`,
+      );
+    }
+
+    const nodeEnv = config.get<string>('NODE_ENV', 'development');
+    const smtpMode = config.get<string>('SMTP_MODE', '').trim().toLowerCase();
+    this.logOnly = smtpMode === 'log' && nodeEnv !== 'production';
+    if (smtpMode === 'log' && nodeEnv === 'production') {
+      this.logger.warn(
+        'SMTP_MODE=log is ignored in production; configure real SMTP.',
+      );
+    }
+    if (this.logOnly) {
+      this.logger.warn(
+        'SMTP_MODE=log — emails are not sent over the network; invite bodies are logged (safe for arbitrary test addresses).',
       );
     }
   }
@@ -103,6 +119,15 @@ ${credsHtml}
     text: string;
     html: string;
   }): Promise<void> {
+    if (this.logOnly) {
+      this.logger.log(
+        `[SMTP_MODE=log] ────────────────────────────────────────────────\n` +
+          `To: ${mail.to}\nSubject: ${mail.subject}\n\n${mail.text}\n` +
+          `────────────────────────────────────────────────`,
+      );
+      return;
+    }
+
     const envelopeTo = this.smtpRedirectTo ?? mail.to;
     if (this.smtpRedirectTo && this.smtpRedirectTo !== mail.to) {
       this.logger.log(

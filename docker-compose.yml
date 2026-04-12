@@ -23,6 +23,17 @@ services:
     volumes:
       - redis_data:/data
 
+  # Local SMTP sink: accepts any recipient (good for testing without Resend).
+  # Run: docker compose --profile mail up -d
+  # Then in .env: SMTP_HOST=mailpit SMTP_PORT=1025 (clear SMTP_USER / SMTP_PASS)
+  # UI: http://localhost:8025
+  mailpit:
+    profiles: ['mail']
+    image: axllent/mailpit:latest
+    ports:
+      - '8025:8025'
+      - '1025:1025'
+
   app:
     build:
       context: .
