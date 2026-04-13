@@ -26,7 +26,7 @@ export class UserTypesController {
     required: false,
     enum: ['SYSTEM', 'EXTERNAL', 'INTERNAL'],
     description:
-      'Filter by category. SYSTEM = internal ETSS staff; EXTERNAL = B2B entities; INTERNAL = same as SYSTEM.',
+      'Optional filter. Response is a flat array; each item has `category`. INTERNAL = same as SYSTEM.',
   })
   @Permissions('manage_users')
   findAll(@Query() query: QueryUserTypesDto) {

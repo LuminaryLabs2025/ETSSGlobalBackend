@@ -16,28 +16,20 @@ export class UserTypesService {
   ) {}
 
   /**
-   * @param category - If set, only types in that category are returned (still grouped).
-   *                   INTERNAL is treated the same as SYSTEM.
+   * Active user types, sorted by name. Each row includes `category` (SYSTEM | EXTERNAL).
+   * @param categoryFilter - If set, only that category is returned (INTERNAL alias → SYSTEM).
    */
-  async findAll(categoryFilter?: UserTypeCategoryQuery) {
+  async findAll(categoryFilter?: UserTypeCategoryQuery): Promise<UserType[]> {
     const types = await this.userTypeRepository.find({
       where: { is_active: true },
       order: { name: 'ASC' },
     });
 
     const matchCategory = this.resolveCategoryFilter(categoryFilter);
-    const scoped = matchCategory
-      ? types.filter((t) => t.category === matchCategory)
-      : types;
-
-    const system = scoped.filter(
-      (t) => t.category === UserTypeCategory.SYSTEM,
-    );
-    const external = scoped.filter(
-      (t) => t.category === UserTypeCategory.EXTERNAL,
-    );
-
-    return { system, external };
+    if (!matchCategory) {
+      return types;
+    }
+    return types.filter((t) => t.category === matchCategory);
   }
 
   private resolveCategoryFilter(
