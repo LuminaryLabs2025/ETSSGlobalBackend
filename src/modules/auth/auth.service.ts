@@ -81,6 +81,7 @@ export class AuthService {
           : null,
         company_id: user.company_id,
         permissions,
+        created_at: user.created_at,
       },
     };
   }
