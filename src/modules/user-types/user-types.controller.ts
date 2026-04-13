@@ -24,7 +24,7 @@ export class UserTypesController {
   @ApiQuery({
     name: 'category',
     required: false,
-    enum: ['SYSTEM', 'EXTERNAL', 'INTERNAL'],
+    enum: ['SYSTEM', 'EXTERNAL'],
     description:
       'Optional filter. Response is a flat array; each item has `category`. INTERNAL = same as SYSTEM.',
   })
