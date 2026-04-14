@@ -14,6 +14,7 @@ import { RolesPermissionsModule } from './modules/roles-permissions/roles-permis
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { ActivityLogModule } from './modules/activity-log/activity-log.module';
 import { QueueModule } from './modules/queue/queue.module';
+import { ProfileModule } from './modules/profile/profile.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { QueueModule } from './modules/queue/queue.module';
     RolesPermissionsModule,
     DashboardModule,
     ActivityLogModule,
+    ProfileModule,
   ],
   providers: [
     {

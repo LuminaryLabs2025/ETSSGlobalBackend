@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { BullModule } from '@nestjs/bullmq';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -8,10 +9,12 @@ import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { User } from '../../database/entities/user.entity';
 import { Permission } from '../../database/entities/permission.entity';
+import { EMAIL_QUEUE } from '../queue/queue.constants';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([User, Permission]),
+    BullModule.registerQueue({ name: EMAIL_QUEUE }),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],

@@ -6,12 +6,14 @@ import {
   UpdateDateColumn,
   ManyToOne,
   OneToMany,
+  OneToOne,
   JoinColumn,
 } from 'typeorm';
 import { Company } from './company.entity';
 import { UserType } from './user-type.entity';
 import { UserPermission } from './user-permission.entity';
 import { TeamMember } from './team-member.entity';
+import { NotificationSettings } from './notification-settings.entity';
 import type { ActivityLog } from './activity-log.entity';
 import { Exclude } from 'class-transformer';
 import { AccountType, UserStatus } from '../../common/enums';
@@ -33,9 +35,42 @@ export class User {
   @Column({ nullable: true })
   phone: string;
 
+  @Column({ type: 'varchar', nullable: true })
+  address: string | null;
+
   @Column()
   @Exclude()
   password: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  @Exclude()
+  password_reset_token: string | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  @Exclude()
+  password_reset_expires_at: Date | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  @Exclude()
+  invite_token: string | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  @Exclude()
+  invite_token_expires_at: Date | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  @Exclude()
+  invite_token_used_at: Date | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  password_changed_at: Date | null;
+
+  @Column({ default: false })
+  two_factor_enabled: boolean;
+
+  @Column({ type: 'text', nullable: true })
+  @Exclude()
+  two_factor_secret: string | null;
 
   @Column({ default: false })
   is_super_admin: boolean;
@@ -79,6 +114,12 @@ export class User {
 
   @OneToMany(() => TeamMember, (teamMember) => teamMember.created_by_user)
   created_team_members: TeamMember[];
+
+  @OneToOne(
+    () => NotificationSettings,
+    (notificationSettings) => notificationSettings.user,
+  )
+  notification_settings: NotificationSettings;
 
   /** String form avoids circular import with `activity-log.entity` at load time. */
   @OneToMany('ActivityLog', 'user')

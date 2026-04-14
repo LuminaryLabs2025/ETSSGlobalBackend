@@ -10,6 +10,8 @@ export type InviteEmailOptions = {
   appName?: string;
   /** Shown in the email so the user can sign in (invite + resend-invite). */
   tempPassword?: string;
+  /** Tokenized one-time link for invite activation. */
+  joinInviteLink?: string;
 };
 
 @Injectable()
@@ -73,6 +75,16 @@ export class MailService {
     await this.send({ to, subject, text, html });
   }
 
+  async sendPasswordResetEmail(to: string, resetLink: string): Promise<void> {
+    const subject = 'Reset your Maritime ETSS password';
+    const text = `We received a request to reset your password.\n\nUse the link below to set a new password (valid for 15 minutes):\n${resetLink}\n\nIf you did not request this, you can safely ignore this email.`;
+    const html = `<p>We received a request to reset your password.</p>
+<p>Use the link below to set a new password (valid for 15 minutes):</p>
+<p><a href="${this.escapeHtml(resetLink)}">${this.escapeHtml(resetLink)}</a></p>
+<p>If you did not request this, you can safely ignore this email.</p>`;
+    await this.send({ to, subject, text, html });
+  }
+
   async sendInviteEmail(
     to: string,
     options: InviteEmailOptions,
@@ -89,6 +101,9 @@ Sign in with:
   • Email: ${to}
   • Temporary password: ${options.tempPassword}
 
+Join invite link:
+  • ${options.joinInviteLink ?? 'Use the link in this email'}
+
 Change your password after signing in if the app offers that option.`
       : `
 
@@ -104,6 +119,7 @@ You have been invited to join ${appName}${inviter}.${credsBlock}
 <li>Email: ${this.escapeHtml(to)}</li>
 <li>Temporary password: <code>${this.escapeHtml(options.tempPassword)}</code></li>
 </ul>
+${options.joinInviteLink ? `<p><strong>Join invite link:</strong> <a href="${this.escapeHtml(options.joinInviteLink)}">${this.escapeHtml(options.joinInviteLink)}</a></p>` : ''}
 <p>Change your password after signing in if the app offers that option.</p>`
       : `<p>Sign in with the email address this message was sent to, using the credentials your administrator provided.</p>`;
     const html = `<p>Hi ${this.escapeHtml(options.firstName)} ${this.escapeHtml(options.lastName)},</p>

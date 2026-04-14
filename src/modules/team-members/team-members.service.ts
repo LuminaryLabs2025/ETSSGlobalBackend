@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { InjectQueue } from '@nestjs/bullmq';
+import { ConfigService } from '@nestjs/config';
 import { Queue } from 'bullmq';
 import { Repository, In } from 'typeorm';
 import * as bcrypt from 'bcrypt';
@@ -53,6 +54,7 @@ export class TeamMembersService {
     private readonly permissionRepository: Repository<Permission>,
     @InjectQueue(EMAIL_QUEUE)
     private readonly emailQueue: Queue,
+    private readonly configService: ConfigService,
   ) {}
 
   async create(
@@ -97,6 +99,9 @@ export class TeamMembersService {
     const { first_name, last_name } = this.splitName(dto.name);
     const rawPassword = this.generatePassword();
     const hashedPassword = await bcrypt.hash(rawPassword, 12);
+    const inviteToken = crypto.randomUUID();
+    const inviteTokenExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const joinInviteLink = this.buildJoinInviteLink(emailNorm, inviteToken);
     const localPart = emailNorm.split('@')[0] || 'user';
     const extra: Record<string, unknown> = {
       username: localPart,
@@ -118,6 +123,9 @@ export class TeamMembersService {
       extra_fields: extra,
       invited_by: actor.id,
       is_super_admin: false,
+      invite_token: inviteToken,
+      invite_token_expires_at: inviteTokenExpiresAt,
+      invite_token_used_at: null,
     } as Partial<User>);
 
     const saved = (await this.userRepository.save(user)) as User;
@@ -139,6 +147,7 @@ export class TeamMembersService {
           tempPassword: rawPassword,
           userType: userType.name,
           invitedByLabel: actorEmail,
+          joinInviteLink,
         },
         {
           removeOnComplete: true,
@@ -283,9 +292,16 @@ export class TeamMembersService {
   async resendInvite(id: string, actor: RequestActor): Promise<{ sent: true }> {
     const user = await this.getSubAccountOrThrow(id, actor);
     const newPassword = this.generatePassword();
+    const inviteToken = crypto.randomUUID();
+    const inviteTokenExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     user.password = await bcrypt.hash(newPassword, 12);
     user.status = UserStatus.AWAITING_ACTIVATION;
+    user.invite_token = inviteToken;
+    user.invite_token_expires_at = inviteTokenExpiresAt;
+    user.invite_token_used_at = null;
     await this.userRepository.save(user);
+
+    const joinInviteLink = this.buildJoinInviteLink(user.email, inviteToken);
 
     try {
       await this.emailQueue.add(
@@ -296,6 +312,7 @@ export class TeamMembersService {
           lastName: user.last_name,
           tempPassword: newPassword,
           userType: user.user_type?.name,
+          joinInviteLink,
         },
         {
           removeOnComplete: true,
@@ -455,5 +472,18 @@ export class TeamMembersService {
   private sanitizeUser(user: User): User {
     const { password, ...rest } = user as any;
     return rest as User;
+  }
+
+  private buildJoinInviteLink(email: string, token: string): string {
+    const frontendBase = this.configService
+      .get<string>('FRONTEND_URL', 'https://etss-global.onrender.com')
+      .replace(/\/$/, '');
+    const joinPath = this.configService.get<string>(
+      'JOIN_INVITE_PATH',
+      '/join-invite',
+    );
+    const path = joinPath.startsWith('/') ? joinPath : `/${joinPath}`;
+    const query = new URLSearchParams({ token, email }).toString();
+    return `${frontendBase}${path}?${query}`;
   }
 }

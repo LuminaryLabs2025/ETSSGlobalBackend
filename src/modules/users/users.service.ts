@@ -7,10 +7,12 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { InjectQueue } from '@nestjs/bullmq';
+import { ConfigService } from '@nestjs/config';
 import { Queue } from 'bullmq';
 import { Repository, Brackets } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
+import { randomUUID } from 'crypto';
 import { validate as isUuid } from 'uuid';
 import { User } from '../../database/entities/user.entity';
 import { UserType } from '../../database/entities/user-type.entity';
@@ -43,6 +45,7 @@ export class UsersService {
     private readonly metadataValidator: MetadataValidatorService,
     @InjectQueue(EMAIL_QUEUE)
     private readonly emailQueue: Queue,
+    private readonly configService: ConfigService,
   ) {}
 
   async create(dto: CreateUserDto, createdById?: string): Promise<User> {
@@ -81,6 +84,10 @@ export class UsersService {
       company = await this.createOrFindCompany(dto, userType, validatedExtra);
     }
 
+    const inviteToken = randomUUID();
+    const inviteTokenExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const joinInviteLink = this.buildJoinInviteLink(emailNorm, inviteToken);
+
     const user = this.userRepository.create({
       first_name: dto.first_name,
       last_name: dto.last_name,
@@ -94,6 +101,9 @@ export class UsersService {
       extra_fields: validatedExtra,
       invited_by: createdById ?? null,
       is_super_admin: false,
+      invite_token: inviteToken,
+      invite_token_expires_at: inviteTokenExpiresAt,
+      invite_token_used_at: null,
     } as Partial<User>);
 
     const saved = (await this.userRepository.save(user)) as User;
@@ -109,6 +119,7 @@ export class UsersService {
           lastName: saved.last_name,
           tempPassword: rawPassword,
           userType: userType.name,
+          joinInviteLink,
         },
         {
           removeOnComplete: true,
@@ -275,9 +286,16 @@ export class UsersService {
     const user = await this.findOne(id);
 
     const newPassword = this.generatePassword();
+    const inviteToken = randomUUID();
+    const inviteTokenExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     user.password = await bcrypt.hash(newPassword, 12);
     user.status = UserStatus.AWAITING_ACTIVATION;
+    user.invite_token = inviteToken;
+    user.invite_token_expires_at = inviteTokenExpiresAt;
+    user.invite_token_used_at = null;
     await this.userRepository.save(user);
+
+    const joinInviteLink = this.buildJoinInviteLink(user.email, inviteToken);
 
     try {
       await this.emailQueue.add(
@@ -288,6 +306,7 @@ export class UsersService {
           lastName: user.last_name,
           tempPassword: newPassword,
           userType: user.user_type?.name,
+          joinInviteLink,
         },
         {
           removeOnComplete: true,
@@ -429,5 +448,21 @@ export class UsersService {
       return `"${value.replace(/"/g, '""')}"`;
     }
     return value;
+  }
+
+  private buildJoinInviteLink(email: string, token: string): string {
+    const frontendBase = this.configService
+      .get<string>('FRONTEND_URL', 'https://etss-global.onrender.com')
+      .replace(/\/$/, '');
+    const joinPath = this.configService.get<string>(
+      'JOIN_INVITE_PATH',
+      '/join-invite',
+    );
+    const path = joinPath.startsWith('/') ? joinPath : `/${joinPath}`;
+    const query = new URLSearchParams({
+      token,
+      email,
+    }).toString();
+    return `${frontendBase}${path}?${query}`;
   }
 }
