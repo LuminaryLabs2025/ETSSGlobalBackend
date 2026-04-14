@@ -69,7 +69,7 @@ export class ProfileService {
       user.password,
     );
     if (!isCurrentPasswordValid) {
-      throw new UnauthorizedException('Current password is incorrect');
+      throw new BadRequestException('Current password is incorrect');
     }
 
     user.password = await bcrypt.hash(dto.newPassword, 12);
