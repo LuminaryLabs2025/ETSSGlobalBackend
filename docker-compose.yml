@@ -23,7 +23,7 @@ services:
     volumes:
       - redis_data:/data
 
-  # Local SMTP sink: accepts any recipient (good for testing without Resend).
+  # Local SMTP sink: accepts any recipient (good for testing without provider restrictions).
   # Run: docker compose --profile mail up -d
   # Then in .env: SMTP_HOST=mailpit SMTP_PORT=1025 (clear SMTP_USER / SMTP_PASS)
   # UI: http://localhost:8025
@@ -55,7 +55,7 @@ services:
       DATABASE_URL: postgres://postgres:postgres@db:5432/etss
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      # SMTP_* comes from .env (e.g. Resend). Do not hardcode secrets here.
+      # SMTP_* comes from .env (e.g. Brevo). Do not hardcode secrets here.
     volumes:
       - .:/app
       - app_node_modules:/app/node_modules

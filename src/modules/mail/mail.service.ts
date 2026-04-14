@@ -19,7 +19,7 @@ export class MailService {
   private readonly logger = new Logger(MailService.name);
   private readonly transporter: Transporter;
   private readonly from: string;
-  /** When set (e.g. Resend sandbox), envelope goes here; body still shows the real invitee email. */
+  /** When set, envelope goes here; body still shows the real invitee email. */
   private readonly smtpRedirectTo: string | undefined;
   /** Development: log full message and skip SMTP (any recipient “works”). */
   private readonly logOnly: boolean;
@@ -163,7 +163,7 @@ ${credsHtml}
       this.logger.error(`Failed to send mail (envelope ${envelopeTo})`, err);
       if (code === 550 || err?.message?.includes('550')) {
         this.logger.error(
-          'SMTP 550 often means Resend sandbox: verify a domain at resend.com/domains, use a From address on that domain, or set SMTP_REDIRECT_TO to your Resend-account email for local testing.',
+          'SMTP 550 often means sender/domain restrictions or a blocked recipient at your SMTP provider. Verify sender identity in Brevo, use a permitted From address/domain, and optionally set SMTP_REDIRECT_TO for local testing.',
         );
       }
       throw err;
