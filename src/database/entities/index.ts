@@ -7,3 +7,23 @@ export { PermissionModule } from './permission-module.entity';
 export { Permission } from './permission.entity';
 export { UserPermission } from './user-permission.entity';
 export { ActivityLog } from './activity-log.entity';
+export {
+  TruckType,
+  TruckCapacity,
+  TruckLength,
+  BookingCategory,
+  TepType,
+  TepTypeBookingCategory,
+  TepTypeTruckType,
+  ParkType,
+  FacilityType,
+  FacilityTypeParkType,
+  FacilityTimeslot,
+  FacilityTimeslotAssignment,
+  PaymentType,
+  InfractionCategory,
+  TerminalGate,
+  Location,
+  HandheldDevice,
+  RfidTag,
+} from './app-options.entities';

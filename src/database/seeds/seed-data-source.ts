@@ -10,6 +10,27 @@ import { UserTypePermission } from '../entities/user-type-permission.entity';
 import { UserPermission } from '../entities/user-permission.entity';
 import { ActivityLog } from '../entities/activity-log.entity';
 import { UserType } from '../entities/user-type.entity';
+import { NotificationSettings } from '../entities/notification-settings.entity';
+import {
+  BookingCategory,
+  FacilityTimeslot,
+  FacilityTimeslotAssignment,
+  FacilityType,
+  FacilityTypeParkType,
+  HandheldDevice,
+  InfractionCategory,
+  Location,
+  ParkType,
+  PaymentType,
+  RfidTag,
+  TepType,
+  TepTypeBookingCategory,
+  TepTypeTruckType,
+  TerminalGate,
+  TruckCapacity,
+  TruckLength,
+  TruckType,
+} from '../entities/app-options.entities';
 
 export const SEED_ENTITIES = [
   User,
@@ -21,6 +42,25 @@ export const SEED_ENTITIES = [
   UserPermission,
   ActivityLog,
   UserType,
+  NotificationSettings,
+  TruckType,
+  TruckCapacity,
+  TruckLength,
+  BookingCategory,
+  TepType,
+  TepTypeBookingCategory,
+  TepTypeTruckType,
+  ParkType,
+  FacilityType,
+  FacilityTypeParkType,
+  FacilityTimeslot,
+  FacilityTimeslotAssignment,
+  PaymentType,
+  InfractionCategory,
+  TerminalGate,
+  Location,
+  HandheldDevice,
+  RfidTag,
 ];
 
 /**

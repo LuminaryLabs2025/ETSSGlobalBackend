@@ -34,6 +34,7 @@ export class ActivityLogService {
       const url = req.originalUrl || req.url || '';
       const pathOnly = url.split('?')[0];
       const ctx = inferHttpActivityContext(method, pathOnly);
+      if (!ctx.shouldLog) return;
 
       let userId: string | null = (req as any).user?.id ?? null;
       if (pathOnly.includes('/api/auth/login') && responseData?.user?.id) {
@@ -91,6 +92,7 @@ export class ActivityLogService {
       const url = req.originalUrl || req.url || '';
       const pathOnly = url.split('?')[0];
       const ctx = inferHttpActivityContext(method, pathOnly);
+      if (!ctx.shouldLog) return;
       const msg =
         typeof message === 'string'
           ? message.slice(0, 4000)

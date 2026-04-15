@@ -15,6 +15,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { ActivityLogModule } from './modules/activity-log/activity-log.module';
 import { QueueModule } from './modules/queue/queue.module';
 import { ProfileModule } from './modules/profile/profile.module';
+import { AppOptionsModule } from './modules/app-options/app-options.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { ProfileModule } from './modules/profile/profile.module';
     DashboardModule,
     ActivityLogModule,
     ProfileModule,
+    AppOptionsModule,
   ],
   providers: [
     {

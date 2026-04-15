@@ -1,0 +1,192 @@
+erDiagram
+
+%% ========================
+%% USER TYPES
+%% ========================
+user_types ||--o{ payment_types : charged_to
+
+user_types {
+  uuid id PK
+  string name
+  string category
+}
+
+%% ========================
+%% CORE TRUCK STRUCTURE
+%% ========================
+truck_types ||--o{ truck_capacities : has
+truck_types ||--o{ truck_lengths : has
+
+truck_types {
+  uuid id PK
+  string name
+  string description
+  string status
+  timestamp created_at
+}
+
+truck_capacities {
+  uuid id PK
+  uuid truck_type_id FK
+  string capacity_value
+  string status
+}
+
+truck_lengths {
+  uuid id PK
+  uuid truck_type_id FK
+  string length_value
+  string status
+}
+
+%% ========================
+%% BOOKING & TEP
+%% ========================
+tep_types ||--o{ tep_type_booking_categories : maps
+booking_categories ||--o{ tep_type_booking_categories : maps
+
+tep_types ||--o{ tep_type_truck_types : maps
+truck_types ||--o{ tep_type_truck_types : maps
+
+tep_types {
+  uuid id PK
+  string name
+  string status
+}
+
+booking_categories {
+  uuid id PK
+  string name
+  string status
+}
+
+tep_type_booking_categories {
+  uuid id PK
+  uuid tep_type_id FK
+  uuid booking_category_id FK
+}
+
+tep_type_truck_types {
+  uuid id PK
+  uuid tep_type_id FK
+  uuid truck_type_id FK
+}
+
+%% ========================
+%% PARK & FACILITY
+%% ========================
+facility_types ||--o{ facility_type_park_types : maps
+park_types ||--o{ facility_type_park_types : maps
+
+facility_types {
+  uuid id PK
+  string name
+  string status
+}
+
+park_types {
+  uuid id PK
+  string name
+  string status
+}
+
+facility_type_park_types {
+  uuid id PK
+  uuid facility_type_id FK
+  uuid park_type_id FK
+}
+
+%% ========================
+%% FACILITY TIMESLOTS
+%% ========================
+facility_timeslots ||--o{ facility_timeslot_assignments : assigned
+
+facility_timeslots {
+  uuid id PK
+  string name
+  time start_time
+  time end_time
+  string status
+}
+
+facility_timeslot_assignments {
+  uuid id PK
+  uuid facility_id FK
+  uuid timeslot_id FK
+  boolean is_active
+}
+
+%% ========================
+%% PAYMENT TYPES (UPDATED)
+%% ========================
+payment_types {
+  uuid id PK
+  string name
+  string service_name
+  string linked_form
+  string revenue_event_trigger
+  uuid charged_to_user_type_id FK
+  string amount_type
+  decimal amount
+  string status
+  timestamp created_at
+}
+
+%% ========================
+%% INFRACTIONS
+%% ========================
+infraction_categories {
+  uuid id PK
+  string name
+  decimal fine_amount
+  string status
+}
+
+%% ========================
+%% TERMINAL GATES
+%% ========================
+terminal_gates {
+  uuid id PK
+  string location
+  string entry_barrier_name
+  string entry_barrier_id
+  string exit_barrier_name
+  string exit_barrier_id
+  timestamp created_at
+}
+
+%% ========================
+%% LOCATIONS (NEW)
+%% ========================
+locations ||--o{ handheld_devices : used_by
+
+locations {
+  uuid id PK
+  string name
+  string type
+  uuid reference_id
+}
+
+%% ========================
+%% HANDHELD DEVICES (UPDATED)
+%% ========================
+handheld_devices {
+  uuid id PK
+  string name
+  uuid user_id FK
+  uuid location_id FK
+  string status
+}
+
+%% ========================
+%% RFID TAGS
+%% ========================
+rfid_tags {
+  uuid id PK
+  string rfid_tag_number
+  string etss_tag_number
+  string status
+  uuid truck_id FK
+  string transporter_name
+  timestamp created_at
+}

@@ -13,6 +13,7 @@ import { runPermissionsSeed } from './runners/permissions.runner';
 import { runUserTypePermissionsSeed } from './runners/user-type-permissions.runner';
 import { runSuperAdminSeed } from './runners/super-admin.runner';
 import { backfillUserPermissionsFromTypes } from './runners/backfill-user-permissions.runner';
+import { runAppOptionsSeed } from './runners/app-options.runner';
 
 async function runAllSeeds(): Promise<void> {
   console.log('🌱 Maritime ETSS — running all seeds\n');
@@ -32,6 +33,7 @@ async function runAllSeeds(): Promise<void> {
     await runUserTypePermissionsSeed(dataSource, userTypeMap, permissionMap);
     await runSuperAdminSeed(dataSource, userTypeMap);
     await backfillUserPermissionsFromTypes(dataSource);
+    await runAppOptionsSeed(dataSource);
 
     console.log('\n🎉 All seeds completed successfully!');
   } finally {

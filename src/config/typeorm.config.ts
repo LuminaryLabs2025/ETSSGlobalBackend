@@ -21,7 +21,10 @@ export default new DataSource({
   password: parsed?.password ?? process.env.DB_PASSWORD ?? 'postgres',
   database: parsed?.database ?? process.env.DB_NAME ?? 'maritime_etss',
   ssl,
-  entities: [__dirname + '/../**/*.entity{.ts,.js}'],
+  entities: [
+    __dirname + '/../**/*.entity{.ts,.js}',
+    __dirname + '/../**/*.entities{.ts,.js}',
+  ],
   migrations: [__dirname + '/../database/migrations/*{.ts,.js}'],
   synchronize: false,
 });

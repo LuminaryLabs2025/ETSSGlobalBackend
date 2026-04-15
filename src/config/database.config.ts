@@ -25,7 +25,10 @@ export const getDatabaseConfig = (
     database:
       parsed?.database ?? configService.get<string>('DB_NAME', 'maritime_etss'),
     ssl,
-    entities: [__dirname + '/../**/*.entity{.ts,.js}'],
+    entities: [
+      __dirname + '/../**/*.entity{.ts,.js}',
+      __dirname + '/../**/*.entities{.ts,.js}',
+    ],
     migrations: [__dirname + '/../database/migrations/*{.ts,.js}'],
     synchronize: configService.get<string>('NODE_ENV') === 'development',
     logging: configService.get<string>('NODE_ENV') === 'development',
