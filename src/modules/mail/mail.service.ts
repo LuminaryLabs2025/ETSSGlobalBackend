@@ -8,8 +8,6 @@ export type InviteEmailOptions = {
   lastName: string;
   invitedByLabel?: string;
   appName?: string;
-  /** Shown in the email so the user can sign in (invite + resend-invite). */
-  tempPassword?: string;
   /** Tokenized one-time link for invite activation. */
   joinInviteLink?: string;
 };
@@ -94,38 +92,27 @@ export class MailService {
       ? ` by ${options.invitedByLabel}`
       : '';
     const subject = `You have been invited to ${appName}`;
-    const credsBlock = options.tempPassword
-      ? `
-
-Sign in with:
-  • Email: ${to}
-  • Temporary password: ${options.tempPassword}
-
-Join invite link:
-  • ${options.joinInviteLink ?? 'Use the link in this email'}
-
-Change your password after signing in if the app offers that option.`
-      : `
-
-Sign in with the email address this message was sent to, using the credentials your administrator provided.`;
+    const inviteLink = options.joinInviteLink ?? 'Use the link in this email';
     const text = `Hi ${options.firstName} ${options.lastName},
 
-You have been invited to join ${appName}${inviter}.${credsBlock}
+You have been invited to join ${appName}${inviter}.
+
+Use the invite link below to activate your account and set your password:
+${inviteLink}
 
 — ${appName}`;
-    const credsHtml = options.tempPassword
-      ? `<p><strong>Sign in with:</strong></p>
-<ul>
-<li>Email: ${this.escapeHtml(to)}</li>
-<li>Temporary password: <code>${this.escapeHtml(options.tempPassword)}</code></li>
-</ul>
-${options.joinInviteLink ? `<p><strong>Join invite link:</strong> <a href="${this.escapeHtml(options.joinInviteLink)}">${this.escapeHtml(options.joinInviteLink)}</a></p>` : ''}
-<p>Change your password after signing in if the app offers that option.</p>`
-      : `<p>Sign in with the email address this message was sent to, using the credentials your administrator provided.</p>`;
     const html = `<p>Hi ${this.escapeHtml(options.firstName)} ${this.escapeHtml(options.lastName)},</p>
 <p>You have been invited to join <strong>${this.escapeHtml(appName)}</strong>${inviter ? ` by <strong>${this.escapeHtml(options.invitedByLabel!)}</strong>` : ''}.</p>
-${credsHtml}
+<p>Use the invite link below to activate your account and set your password:</p>
+<p><a href="${this.escapeHtml(inviteLink)}">${this.escapeHtml(inviteLink)}</a></p>
 <p>— ${this.escapeHtml(appName)}</p>`;
+    await this.send({ to, subject, text, html });
+  }
+
+  async sendTwoFactorCodeEmail(to: string, code: string): Promise<void> {
+    const subject = 'Your Maritime ETSS verification code';
+    const text = `Use this verification code to complete your sign in:\n\n${code}\n\nThis code expires in 10 minutes.`;
+    const html = `<p>Use this verification code to complete your sign in:</p><p><strong>${this.escapeHtml(code)}</strong></p><p>This code expires in 10 minutes.</p>`;
     await this.send({ to, subject, text, html });
   }
 

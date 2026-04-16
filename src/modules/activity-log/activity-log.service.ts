@@ -27,6 +27,41 @@ export class ActivityLogService {
     private readonly activityLogRepository: Repository<ActivityLog>,
   ) {}
 
+  async recordEvent(params: {
+    userId?: string | null;
+    action: string;
+    module: string;
+    metadata?: Record<string, any> | null;
+    status?: ActivityLogEntryStatus;
+    errorMessage?: string | null;
+  }): Promise<void> {
+    try {
+      const log = this.activityLogRepository.create({
+        user_id: params.userId ?? null,
+        action: params.action,
+        entity: params.module,
+        entity_id: undefined,
+        feature_module: params.module.trim() || 'System',
+        action_label: params.action,
+        entry_status: params.status ?? ActivityLogEntryStatus.SUCCESS,
+        metadata: {
+          user_id: params.userId ?? null,
+          action: params.action,
+          module: params.module.trim() || 'System',
+          metadata: params.metadata ?? {},
+          timestamp: new Date().toISOString(),
+        },
+        ip_address: undefined,
+        user_agent: undefined,
+        http_status_code: undefined,
+        error_message: params.errorMessage ?? undefined,
+      } as Partial<ActivityLog>);
+      await this.activityLogRepository.save(log);
+    } catch {
+      /* swallow */
+    }
+  }
+
   /** Called from HTTP interceptor after successful mutating requests. */
   async recordHttpSuccess(req: Request, responseData: any): Promise<void> {
     try {
@@ -46,9 +81,15 @@ export class ActivityLogService {
         extractEntityIdFromPath(pathOnly);
 
       const metadata: Record<string, any> = {
-        method,
-        url,
-        body: this.sanitizeBody(req.body),
+        user_id: userId,
+        action: httpMethodToAction(method),
+        module: ctx.module,
+        metadata: {
+          method,
+          url,
+          body: this.sanitizeBody(req.body),
+        },
+        timestamp: new Date().toISOString(),
       };
       const seg = parseApiSegments(pathOnly);
       if (
@@ -107,9 +148,15 @@ export class ActivityLogService {
         action_label: `${ctx.actionLabel} (failed)`,
         entry_status: ActivityLogEntryStatus.FAILED,
         metadata: {
-          method,
-          url,
-          body: this.sanitizeBody(req.body),
+          user_id: (req as any).user?.id ?? null,
+          action: httpMethodToAction(method),
+          module: ctx.module,
+          metadata: {
+            method,
+            url,
+            body: this.sanitizeBody(req.body),
+          },
+          timestamp: new Date().toISOString(),
         },
         ip_address: req.ip,
         user_agent: req.get('user-agent') ?? null,

@@ -11,7 +11,6 @@ import { ConfigService } from '@nestjs/config';
 import { Queue } from 'bullmq';
 import { Repository, Brackets } from 'typeorm';
 import * as bcrypt from 'bcrypt';
-import * as crypto from 'crypto';
 import { randomUUID } from 'crypto';
 import { validate as isUuid } from 'uuid';
 import { User } from '../../database/entities/user.entity';
@@ -22,10 +21,16 @@ import { UserTypePermission } from '../../database/entities/user-type-permission
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { QueryUsersDto } from './dto/query-users.dto';
-import { AccountType, UserStatus, UserTypeCategory } from '../../common/enums';
+import {
+  AccountType,
+  TwoFactorMethod,
+  UserStatus,
+  UserTypeCategory,
+} from '../../common/enums';
 import { MetadataValidatorService } from '../../common/services/metadata-validator.service';
 import { EMAIL_QUEUE, JOB_INVITE_EMAIL } from '../queue/queue.constants';
 import { normalizeEmail } from '../../common/utils/email-normalize';
+import { ActivityLogService } from '../activity-log/activity-log.service';
 
 @Injectable()
 export class UsersService {
@@ -46,6 +51,7 @@ export class UsersService {
     @InjectQueue(EMAIL_QUEUE)
     private readonly emailQueue: Queue,
     private readonly configService: ConfigService,
+    private readonly activityLogService: ActivityLogService,
   ) {}
 
   async create(dto: CreateUserDto, createdById?: string): Promise<User> {
@@ -69,8 +75,7 @@ export class UsersService {
       dto.extra_fields || null,
     );
 
-    const rawPassword = dto.password || this.generatePassword();
-    const hashedPassword = await bcrypt.hash(rawPassword, 12);
+    const hashedPassword = await bcrypt.hash(randomUUID(), 12);
 
     const isExternal = userType.category === UserTypeCategory.EXTERNAL;
 
@@ -104,6 +109,8 @@ export class UsersService {
       invite_token: inviteToken,
       invite_token_expires_at: inviteTokenExpiresAt,
       invite_token_used_at: null,
+      two_factor_enabled: true,
+      two_factor_method: TwoFactorMethod.EMAIL,
     } as Partial<User>);
 
     const saved = (await this.userRepository.save(user)) as User;
@@ -117,7 +124,6 @@ export class UsersService {
           to: saved.email,
           firstName: saved.first_name,
           lastName: saved.last_name,
-          tempPassword: rawPassword,
           userType: userType.name,
           joinInviteLink,
         },
@@ -130,6 +136,17 @@ export class UsersService {
     } catch (err) {
       this.logger.error(`Failed to enqueue invite for ${saved.email}`, err);
     }
+
+    await this.activityLogService.recordEvent({
+      userId: createdById ?? saved.id,
+      action: 'USER_ONBOARDED',
+      module: 'User Management',
+      metadata: {
+        user_id: saved.id,
+        email: saved.email,
+        user_type: userType.name,
+      },
+    });
 
     return this.findOne(saved.id);
   }
@@ -285,10 +302,8 @@ export class UsersService {
   async resendInvite(id: string, actionBy: string): Promise<{ sent: true }> {
     const user = await this.findOne(id);
 
-    const newPassword = this.generatePassword();
     const inviteToken = randomUUID();
     const inviteTokenExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-    user.password = await bcrypt.hash(newPassword, 12);
     user.status = UserStatus.AWAITING_ACTIVATION;
     user.invite_token = inviteToken;
     user.invite_token_expires_at = inviteTokenExpiresAt;
@@ -304,7 +319,6 @@ export class UsersService {
           to: user.email,
           firstName: user.first_name,
           lastName: user.last_name,
-          tempPassword: newPassword,
           userType: user.user_type?.name,
           joinInviteLink,
         },
@@ -431,10 +445,6 @@ export class UsersService {
       extra_data: validatedExtra,
     } as Partial<Company>);
     return this.companyRepository.save(company) as Promise<Company>;
-  }
-
-  private generatePassword(): string {
-    return crypto.randomBytes(6).toString('base64url').slice(0, 12);
   }
 
   private sanitizeUser(user: User) {

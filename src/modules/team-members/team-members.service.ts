@@ -12,7 +12,7 @@ import { ConfigService } from '@nestjs/config';
 import { Queue } from 'bullmq';
 import { Repository, In } from 'typeorm';
 import * as bcrypt from 'bcrypt';
-import * as crypto from 'crypto';
+import { randomUUID } from 'crypto';
 import { User } from '../../database/entities/user.entity';
 import { UserType } from '../../database/entities/user-type.entity';
 import { Company } from '../../database/entities/company.entity';
@@ -23,11 +23,13 @@ import { CreateTeamMemberDto } from './dto/create-team-member.dto';
 import { QueryTeamMembersDto } from './dto/query-team-members.dto';
 import {
   AccountType,
+  TwoFactorMethod,
   UserStatus,
   UserTypeCategory,
 } from '../../common/enums';
 import { normalizeEmail } from '../../common/utils/email-normalize';
 import { EMAIL_QUEUE, JOB_INVITE_EMAIL } from '../queue/queue.constants';
+import { ActivityLogService } from '../activity-log/activity-log.service';
 
 type RequestActor = {
   id: string;
@@ -55,6 +57,7 @@ export class TeamMembersService {
     @InjectQueue(EMAIL_QUEUE)
     private readonly emailQueue: Queue,
     private readonly configService: ConfigService,
+    private readonly activityLogService: ActivityLogService,
   ) {}
 
   async create(
@@ -97,9 +100,8 @@ export class TeamMembersService {
     }
 
     const { first_name, last_name } = this.splitName(dto.name);
-    const rawPassword = this.generatePassword();
-    const hashedPassword = await bcrypt.hash(rawPassword, 12);
-    const inviteToken = crypto.randomUUID();
+    const hashedPassword = await bcrypt.hash(randomUUID(), 12);
+    const inviteToken = randomUUID();
     const inviteTokenExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     const joinInviteLink = this.buildJoinInviteLink(emailNorm, inviteToken);
     const localPart = emailNorm.split('@')[0] || 'user';
@@ -126,6 +128,8 @@ export class TeamMembersService {
       invite_token: inviteToken,
       invite_token_expires_at: inviteTokenExpiresAt,
       invite_token_used_at: null,
+      two_factor_enabled: true,
+      two_factor_method: TwoFactorMethod.EMAIL,
     } as Partial<User>);
 
     const saved = (await this.userRepository.save(user)) as User;
@@ -144,7 +148,6 @@ export class TeamMembersService {
           to: saved.email,
           firstName: saved.first_name,
           lastName: saved.last_name,
-          tempPassword: rawPassword,
           userType: userType.name,
           invitedByLabel: actorEmail,
           joinInviteLink,
@@ -158,6 +161,18 @@ export class TeamMembersService {
     } catch (err) {
       this.logger.error(`Failed to enqueue team member invite for ${saved.email}`, err);
     }
+
+    await this.activityLogService.recordEvent({
+      userId: actor.id,
+      action: 'USER_ONBOARDED',
+      module: 'User Management',
+      metadata: {
+        user_id: saved.id,
+        email: saved.email,
+        user_type: userType.name,
+        account_type: saved.account_type,
+      },
+    });
 
     return this.findOne(saved.id, actor);
   }
@@ -291,10 +306,8 @@ export class TeamMembersService {
 
   async resendInvite(id: string, actor: RequestActor): Promise<{ sent: true }> {
     const user = await this.getSubAccountOrThrow(id, actor);
-    const newPassword = this.generatePassword();
-    const inviteToken = crypto.randomUUID();
+    const inviteToken = randomUUID();
     const inviteTokenExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-    user.password = await bcrypt.hash(newPassword, 12);
     user.status = UserStatus.AWAITING_ACTIVATION;
     user.invite_token = inviteToken;
     user.invite_token_expires_at = inviteTokenExpiresAt;
@@ -310,7 +323,6 @@ export class TeamMembersService {
           to: user.email,
           firstName: user.first_name,
           lastName: user.last_name,
-          tempPassword: newPassword,
           userType: user.user_type?.name,
           joinInviteLink,
         },
@@ -394,10 +406,6 @@ export class TeamMembersService {
       first_name: parts[0],
       last_name: parts.slice(1).join(' '),
     };
-  }
-
-  private generatePassword(): string {
-    return crypto.randomBytes(6).toString('base64url').slice(0, 12);
   }
 
   /**

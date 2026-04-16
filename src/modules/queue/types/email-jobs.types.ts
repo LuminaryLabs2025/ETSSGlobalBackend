@@ -3,8 +3,6 @@ export type InviteEmailJobData = {
   firstName: string;
   lastName: string;
   invitedByLabel?: string;
-  /** When set (create + resend-invite), included in the email body. */
-  tempPassword?: string;
   joinInviteLink?: string;
 };
 
@@ -16,4 +14,9 @@ export type WelcomeEmailJobData = {
 export type PasswordResetEmailJobData = {
   to: string;
   resetLink: string;
+};
+
+export type TwoFactorEmailJobData = {
+  to: string;
+  code: string;
 };

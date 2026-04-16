@@ -16,7 +16,18 @@ import { QueryTeamMembersDto } from './dto/query-team-members.dto';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { Permissions } from '../../common/decorators/permissions.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
+import {
+  TeamMemberInviteSentResponseDto,
+  TeamMemberListResponseDto,
+  TeamMemberResponseDto,
+  TeamMemberSummaryResponseDto,
+} from './dto/team-member-response.dto';
 
 @ApiTags('team-members')
 @ApiBearerAuth('access-token')
@@ -32,6 +43,7 @@ export class TeamMembersController {
     description:
       'Creates a User with account_type SUB_ACCOUNT. company_id is taken from the inviter JWT for external types; system types have no company. Do not send company_id in the body.',
   })
+  @ApiOkResponse({ type: TeamMemberResponseDto })
   create(
     @Body() dto: CreateTeamMemberDto,
     @CurrentUser() user: any,
@@ -51,6 +63,7 @@ export class TeamMembersController {
   @Get('summary')
   @Permissions('manage_users')
   @ApiOperation({ summary: 'Team member counts (sub-accounts only)' })
+  @ApiOkResponse({ type: TeamMemberSummaryResponseDto })
   getSummary(@CurrentUser() user: any) {
     return this.teamMembersService.getSummary({
       id: user.id,
@@ -62,6 +75,7 @@ export class TeamMembersController {
   @Get()
   @Permissions('manage_users')
   @ApiOperation({ summary: 'List team members (paginated, filtered)' })
+  @ApiOkResponse({ type: TeamMemberListResponseDto })
   findAll(@Query() query: QueryTeamMembersDto, @CurrentUser() user: any) {
     return this.teamMembersService.findAll(query, {
       id: user.id,
@@ -72,6 +86,7 @@ export class TeamMembersController {
 
   @Get(':id')
   @Permissions('manage_users')
+  @ApiOkResponse({ type: TeamMemberResponseDto })
   findOne(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
     return this.teamMembersService.findOne(id, {
       id: user.id,
@@ -82,6 +97,7 @@ export class TeamMembersController {
 
   @Patch(':id/disable')
   @Permissions('manage_users')
+  @ApiOkResponse({ type: TeamMemberResponseDto })
   disable(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
     return this.teamMembersService.disable(id, {
       id: user.id,
@@ -92,6 +108,7 @@ export class TeamMembersController {
 
   @Patch(':id/enable')
   @Permissions('manage_users')
+  @ApiOkResponse({ type: TeamMemberResponseDto })
   enable(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
     return this.teamMembersService.enable(id, {
       id: user.id,
@@ -102,6 +119,7 @@ export class TeamMembersController {
 
   @Patch(':id/archive')
   @Permissions('manage_users')
+  @ApiOkResponse({ type: TeamMemberResponseDto })
   archive(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
     return this.teamMembersService.archive(id, {
       id: user.id,
@@ -112,6 +130,7 @@ export class TeamMembersController {
 
   @Post(':id/resend-invite')
   @Permissions('manage_users')
+  @ApiOkResponse({ type: TeamMemberInviteSentResponseDto })
   resendInvite(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: any,

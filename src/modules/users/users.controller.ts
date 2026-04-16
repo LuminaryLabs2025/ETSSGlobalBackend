@@ -21,7 +21,13 @@ import { QueryUsersDto } from './dto/query-users.dto';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { Permissions } from '../../common/decorators/permissions.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import {
+  InviteSentResponseDto,
+  UserListResponseDto,
+  UserResponseDto,
+  UserSummaryResponseDto,
+} from './dto/user-response.dto';
 
 @ApiTags('users')
 @ApiBearerAuth('access-token')
@@ -32,6 +38,7 @@ export class UsersController {
 
   @Post()
   @Permissions('create_user')
+  @ApiOkResponse({ type: UserResponseDto })
   create(
     @Body() dto: CreateUserDto,
     @CurrentUser('id') userId: string,
@@ -41,6 +48,7 @@ export class UsersController {
 
   @Get('summary')
   @Permissions('view_dashboard')
+  @ApiOkResponse({ type: UserSummaryResponseDto })
   getSummary() {
     return this.usersService.getSummary();
   }
@@ -58,18 +66,21 @@ export class UsersController {
 
   @Get()
   @Permissions('manage_users')
+  @ApiOkResponse({ type: UserListResponseDto })
   findAll(@Query() query: QueryUsersDto) {
     return this.usersService.findAll(query);
   }
 
   @Get(':id')
   @Permissions('manage_users')
+  @ApiOkResponse({ type: UserResponseDto })
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.usersService.findOne(id);
   }
 
   @Put(':id')
   @Permissions('manage_users')
+  @ApiOkResponse({ type: UserResponseDto })
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateUserDto,
@@ -79,6 +90,7 @@ export class UsersController {
 
   @Patch(':id/disable')
   @Permissions('manage_users')
+  @ApiOkResponse({ type: UserResponseDto })
   disable(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser('id') userId: string,
@@ -88,6 +100,7 @@ export class UsersController {
 
   @Patch(':id/enable')
   @Permissions('manage_users')
+  @ApiOkResponse({ type: UserResponseDto })
   enable(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser('id') userId: string,
@@ -97,6 +110,7 @@ export class UsersController {
 
   @Patch(':id/archive')
   @Permissions('manage_users')
+  @ApiOkResponse({ type: UserResponseDto })
   archive(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser('id') userId: string,
@@ -106,6 +120,7 @@ export class UsersController {
 
   @Post(':id/resend-invite')
   @Permissions('manage_users')
+  @ApiOkResponse({ type: InviteSentResponseDto })
   resendInvite(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser('id') userId: string,

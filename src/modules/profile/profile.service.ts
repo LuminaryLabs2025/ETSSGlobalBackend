@@ -12,12 +12,13 @@ import * as speakeasy from 'speakeasy';
 import * as QRCode from 'qrcode';
 import { User } from '../../database/entities/user.entity';
 import { NotificationSettings } from '../../database/entities/notification-settings.entity';
-import { UserStatus } from '../../common/enums';
+import { TwoFactorMethod, UserStatus } from '../../common/enums';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { Verify2FADto } from './dto/verify-2fa.dto';
-import { Disable2FADto } from './dto/disable-2fa.dto';
 import { UpdateNotificationSettingsDto } from './dto/update-notification-settings.dto';
+import { UpdateTwoFactorMethodDto } from './dto/update-two-factor-method.dto';
+import { ActivityLogService } from '../activity-log/activity-log.service';
 
 @Injectable()
 export class ProfileService {
@@ -27,6 +28,7 @@ export class ProfileService {
     @InjectRepository(NotificationSettings)
     private readonly notificationSettingsRepository: Repository<NotificationSettings>,
     private readonly configService: ConfigService,
+    private readonly activityLogService: ActivityLogService,
   ) {}
 
   async getProfile(userId: string) {
@@ -42,10 +44,8 @@ export class ProfileService {
   async updateProfile(userId: string, dto: UpdateProfileDto) {
     const user = await this.findUserWithRelations(userId);
 
-    if (typeof dto.name === 'string') {
-      const parsedName = this.parseName(dto.name, user.last_name);
-      user.first_name = parsedName.firstName;
-      user.last_name = parsedName.lastName;
+    if (typeof dto.phone === 'string') {
+      user.phone = dto.phone.trim() || null;
     }
 
     if (typeof dto.address === 'string') {
@@ -78,6 +78,12 @@ export class ProfileService {
       user.status = UserStatus.ACTIVE;
     }
     await this.userRepository.save(user);
+    await this.activityLogService.recordEvent({
+      userId: user.id,
+      action: 'PASSWORD_CHANGED',
+      module: 'Authentication',
+      metadata: null,
+    });
 
     return { success: true };
   }
@@ -92,7 +98,7 @@ export class ProfileService {
       issuer: appName,
     });
 
-    user.two_factor_enabled = false;
+    user.two_factor_enabled = true;
     user.two_factor_secret = secret.base32;
     await this.userRepository.save(user);
 
@@ -124,32 +130,53 @@ export class ProfileService {
     }
 
     user.two_factor_enabled = true;
+    user.two_factor_method = TwoFactorMethod.AUTHENTICATOR;
     await this.userRepository.save(user);
+    await this.activityLogService.recordEvent({
+      userId: user.id,
+      action: 'TWO_FACTOR_METHOD_CHANGED',
+      module: 'Authentication',
+      metadata: { method: TwoFactorMethod.AUTHENTICATOR },
+    });
 
-    return { twoFactorEnabled: true };
+    return {
+      twoFactorEnabled: true,
+      twoFactorMethod: user.two_factor_method,
+    };
   }
 
-  async disableTwoFactor(userId: string, dto: Disable2FADto) {
+  async updateTwoFactorMethod(userId: string, dto: UpdateTwoFactorMethodDto) {
     const user = await this.findUserById(userId);
-    if (!user.two_factor_enabled || !user.two_factor_secret) {
-      throw new BadRequestException('2FA is not enabled');
+
+    if (
+      dto.method === TwoFactorMethod.AUTHENTICATOR &&
+      !user.two_factor_secret
+    ) {
+      throw new BadRequestException(
+        'Authenticator app must be configured before selecting it',
+      );
     }
 
-    const isValid = speakeasy.totp.verify({
-      secret: user.two_factor_secret,
-      encoding: 'base32',
-      token: dto.token,
-      window: 1,
-    });
-    if (!isValid) {
-      throw new BadRequestException('Invalid 2FA token');
+    if (dto.method === TwoFactorMethod.SMS && !user.phone) {
+      throw new BadRequestException(
+        'A phone number is required before selecting SMS 2FA',
+      );
     }
 
-    user.two_factor_enabled = false;
-    user.two_factor_secret = null;
+    user.two_factor_enabled = true;
+    user.two_factor_method = dto.method;
     await this.userRepository.save(user);
+    await this.activityLogService.recordEvent({
+      userId: user.id,
+      action: 'TWO_FACTOR_METHOD_CHANGED',
+      module: 'Authentication',
+      metadata: { method: dto.method },
+    });
 
-    return { twoFactorEnabled: false };
+    return {
+      twoFactorEnabled: true,
+      twoFactorMethod: user.two_factor_method,
+    };
   }
 
   async updateNotificationSettings(
@@ -196,6 +223,8 @@ export class ProfileService {
       company: user.company?.name ?? 'N/A',
       accountType: user.account_type,
       accountStatus: user.status,
+      phone: user.phone ?? null,
+      address: user.address ?? null,
     };
   }
 
@@ -230,19 +259,10 @@ export class ProfileService {
   private toSecurityAuditResponse(user: User) {
     return {
       passwordLastChanged: user.password_changed_at,
-      twoFactorAuthentication: user.two_factor_enabled,
+      twoFactorAuthentication: true,
+      twoFactorMethod: user.two_factor_method,
       accountCreated: user.created_at,
     };
-  }
-
-  private parseName(name: string, fallbackLastName: string) {
-    const normalized = name.trim().replace(/\s+/g, ' ');
-    if (!normalized) {
-      throw new BadRequestException('Name cannot be empty');
-    }
-    const [firstName, ...rest] = normalized.split(' ');
-    const lastName = rest.length ? rest.join(' ') : fallbackLastName;
-    return { firstName, lastName };
   }
 
   private resolveRoleLabel(user: User): string {

@@ -16,7 +16,7 @@ import { TeamMember } from './team-member.entity';
 import { NotificationSettings } from './notification-settings.entity';
 import type { ActivityLog } from './activity-log.entity';
 import { Exclude } from 'class-transformer';
-import { AccountType, UserStatus } from '../../common/enums';
+import { AccountType, TwoFactorMethod, UserStatus } from '../../common/enums';
 
 @Entity('users')
 export class User {
@@ -32,8 +32,8 @@ export class User {
   @Column({ unique: true })
   email: string;
 
-  @Column({ nullable: true })
-  phone: string;
+  @Column({ type: 'varchar', nullable: true })
+  phone: string | null;
 
   @Column({ type: 'varchar', nullable: true })
   address: string | null;
@@ -65,12 +65,27 @@ export class User {
   @Column({ type: 'timestamp', nullable: true })
   password_changed_at: Date | null;
 
-  @Column({ default: false })
+  @Column({ default: true })
   two_factor_enabled: boolean;
+
+  @Column({
+    type: 'enum',
+    enum: TwoFactorMethod,
+    default: TwoFactorMethod.EMAIL,
+  })
+  two_factor_method: TwoFactorMethod;
 
   @Column({ type: 'text', nullable: true })
   @Exclude()
   two_factor_secret: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  @Exclude()
+  two_factor_code: string | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  @Exclude()
+  two_factor_code_expires_at: Date | null;
 
   @Column({ default: false })
   is_super_admin: boolean;

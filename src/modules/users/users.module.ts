@@ -10,6 +10,7 @@ import { UserPermission } from '../../database/entities/user-permission.entity';
 import { UserTypePermission } from '../../database/entities/user-type-permission.entity';
 import { MetadataValidatorService } from '../../common/services/metadata-validator.service';
 import { EMAIL_QUEUE } from '../queue/queue.constants';
+import { ActivityLogModule } from '../activity-log/activity-log.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { EMAIL_QUEUE } from '../queue/queue.constants';
       UserTypePermission,
     ]),
     BullModule.registerQueue({ name: EMAIL_QUEUE }),
+    ActivityLogModule,
   ],
   controllers: [UsersController],
   providers: [UsersService, MetadataValidatorService],

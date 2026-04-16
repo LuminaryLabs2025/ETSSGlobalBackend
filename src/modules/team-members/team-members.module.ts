@@ -10,6 +10,7 @@ import { UserPermission } from '../../database/entities/user-permission.entity';
 import { UserTypePermission } from '../../database/entities/user-type-permission.entity';
 import { Permission } from '../../database/entities/permission.entity';
 import { EMAIL_QUEUE } from '../queue/queue.constants';
+import { ActivityLogModule } from '../activity-log/activity-log.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { EMAIL_QUEUE } from '../queue/queue.constants';
       Permission,
     ]),
     BullModule.registerQueue({ name: EMAIL_QUEUE }),
+    ActivityLogModule,
   ],
   controllers: [TeamMembersController],
   providers: [TeamMembersService],

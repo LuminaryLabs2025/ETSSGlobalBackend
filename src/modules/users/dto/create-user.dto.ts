@@ -5,7 +5,6 @@ import {
   IsString,
   IsUUID,
   IsObject,
-  MinLength,
 } from 'class-validator';
 
 export class CreateUserDto {
@@ -28,11 +27,6 @@ export class CreateUserDto {
   @IsString()
   @IsOptional()
   phone?: string;
-
-  @IsString()
-  @IsOptional()
-  @MinLength(6)
-  password?: string;
 
   @IsString()
   @IsOptional()

@@ -16,6 +16,12 @@ export enum UserStatus {
   ARCHIVED = 'ARCHIVED',
 }
 
+export enum TwoFactorMethod {
+  EMAIL = 'EMAIL',
+  AUTHENTICATOR = 'AUTHENTICATOR',
+  SMS = 'SMS',
+}
+
 /** Outcome of an audited HTTP or domain action (activity log row). */
 export enum ActivityLogEntryStatus {
   SUCCESS = 'SUCCESS',

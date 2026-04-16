@@ -12,6 +12,7 @@ import { Queue } from 'bullmq';
 import { randomUUID } from 'crypto';
 import { IsNull, MoreThan, Raw, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
+import * as speakeasy from 'speakeasy';
 import { User } from '../../database/entities/user.entity';
 import { Permission } from '../../database/entities/permission.entity';
 import { LoginDto } from './dto/login.dto';
@@ -21,7 +22,14 @@ import { CompleteInviteDto } from './dto/complete-invite.dto';
 import { JwtPayload } from '../../common/interfaces/jwt-payload.interface';
 import { UserStatus } from '../../common/enums';
 import { normalizeEmail } from '../../common/utils/email-normalize';
-import { EMAIL_QUEUE, JOB_PASSWORD_RESET_EMAIL } from '../queue/queue.constants';
+import {
+  EMAIL_QUEUE,
+  JOB_PASSWORD_RESET_EMAIL,
+  JOB_TWO_FACTOR_EMAIL,
+} from '../queue/queue.constants';
+import { ActivityLogService } from '../activity-log/activity-log.service';
+import { ActivityLogEntryStatus, TwoFactorMethod } from '../../common/enums';
+import { VerifyLoginTwoFactorDto } from './dto/verify-login-2fa.dto';
 
 @Injectable()
 export class AuthService {
@@ -34,6 +42,7 @@ export class AuthService {
     private readonly permissionRepository: Repository<Permission>,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly activityLogService: ActivityLogService,
     @InjectQueue(EMAIL_QUEUE)
     private readonly emailQueue: Queue,
   ) {}
@@ -54,6 +63,16 @@ export class AuthService {
     });
 
     if (!user) {
+      await this.activityLogService.recordEvent({
+        action: 'LOGIN_FAILED',
+        module: 'Authentication',
+        metadata: {
+          email: emailNorm,
+          reason: 'user_not_found',
+        },
+        status: ActivityLogEntryStatus.FAILED,
+        errorMessage: 'Invalid credentials',
+      });
       throw new UnauthorizedException('Invalid credentials');
     }
 
@@ -66,17 +85,81 @@ export class AuthService {
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
+      await this.activityLogService.recordEvent({
+        userId: user.id,
+        action: 'LOGIN_FAILED',
+        module: 'Authentication',
+        metadata: {
+          email: user.email,
+          reason: 'invalid_password',
+        },
+        status: ActivityLogEntryStatus.FAILED,
+        errorMessage: 'Invalid credentials',
+      });
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    if (user.status === UserStatus.AWAITING_ACTIVATION) {
-      user.status = UserStatus.ACTIVE;
-      await this.userRepository.save(user);
+    const challengeMethod = await this.prepareTwoFactorChallenge(user);
+    const temporaryToken = this.jwtService.sign(
+      {
+        sub: user.id,
+        email: user.email,
+        purpose: '2fa_pending',
+        method: challengeMethod,
+      },
+      { expiresIn: '10m' },
+    );
+
+    return {
+      temporary_token: temporaryToken,
+      message: '2FA verification required',
+      two_factor_method: challengeMethod,
+    };
+  }
+
+  async verifyLoginTwoFactor(dto: VerifyLoginTwoFactorDto) {
+    let payload: {
+      sub: string;
+      email: string;
+      purpose: string;
+      method: TwoFactorMethod;
+    };
+
+    try {
+      payload = this.jwtService.verify(dto.temporary_token);
+    } catch {
+      throw new UnauthorizedException('Invalid or expired temporary token');
     }
 
-    const permissions = await this.resolvePermissionNames(user);
+    if (payload.purpose !== '2fa_pending') {
+      throw new UnauthorizedException('Invalid temporary token');
+    }
 
-    const payload: JwtPayload = {
+    const user = await this.userRepository.findOne({
+      where: { id: payload.sub },
+      relations: [
+        'user_type',
+        'user_permissions',
+        'user_permissions.permission',
+      ],
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    await this.assertValidTwoFactorCode(user, dto.code, payload.method);
+
+    if (user.status === UserStatus.AWAITING_ACTIVATION) {
+      user.status = UserStatus.ACTIVE;
+    }
+
+    user.two_factor_code = null;
+    user.two_factor_code_expires_at = null;
+    await this.userRepository.save(user);
+
+    const permissions = await this.resolvePermissionNames(user);
+    const accessPayload: JwtPayload = {
       sub: user.id,
       email: user.email,
       is_super_admin: user.is_super_admin,
@@ -84,23 +167,26 @@ export class AuthService {
       permissions,
     };
 
+    await this.activityLogService.recordEvent({
+      userId: user.id,
+      action: 'LOGIN',
+      module: 'Authentication',
+      metadata: { method: payload.method },
+    });
+    await this.activityLogService.recordEvent({
+      userId: user.id,
+      action: 'TWO_FACTOR_VERIFIED',
+      module: 'Authentication',
+      metadata: { method: payload.method },
+    });
+
     return {
-      access_token: this.jwtService.sign(payload),
-      user: {
-        id: user.id,
-        email: user.email,
-        first_name: user.first_name,
-        last_name: user.last_name,
-        is_super_admin: user.is_super_admin,
-        account_type: user.account_type,
-        status: user.status,
-        user_type: user.user_type
-          ? { id: user.user_type.id, name: user.user_type.name }
-          : null,
-        company_id: user.company_id,
-        permissions,
-        created_at: user.created_at,
-      },
+      access_token: this.jwtService.sign(accessPayload),
+      refresh_token: this.jwtService.sign(
+        { sub: user.id, purpose: 'refresh' },
+        { expiresIn: '7d' },
+      ),
+      user: this.buildAuthenticatedUserResponse(user, permissions),
     };
   }
 
@@ -166,6 +252,12 @@ export class AuthService {
     user.password_reset_expires_at = null;
     user.password_changed_at = new Date();
     await this.userRepository.save(user);
+    await this.activityLogService.recordEvent({
+      userId: user.id,
+      action: 'PASSWORD_CHANGED',
+      module: 'Authentication',
+      metadata: { source: 'reset_password' },
+    });
 
     return { success: true };
   }
@@ -192,8 +284,135 @@ export class AuthService {
     user.invite_token = null;
     user.invite_token_expires_at = null;
     await this.userRepository.save(user);
+    await this.activityLogService.recordEvent({
+      userId: user.id,
+      action: 'USER_ONBOARDED',
+      module: 'User Management',
+      metadata: { source: 'invite_completion' },
+    });
 
     return { success: true };
+  }
+
+  private async prepareTwoFactorChallenge(user: User): Promise<TwoFactorMethod> {
+    const method = this.resolveLoginTwoFactorMethod(user);
+
+    if (method === TwoFactorMethod.AUTHENTICATOR) {
+      return method;
+    }
+
+    const code = this.generateNumericCode();
+    user.two_factor_code = await bcrypt.hash(code, 10);
+    user.two_factor_code_expires_at = new Date(Date.now() + 10 * 60 * 1000);
+    await this.userRepository.save(user);
+
+    if (method === TwoFactorMethod.EMAIL) {
+      await this.emailQueue.add(
+        JOB_TWO_FACTOR_EMAIL,
+        { to: user.email, code },
+        {
+          removeOnComplete: true,
+          attempts: 3,
+          backoff: { type: 'exponential', delay: 2000 },
+        },
+      );
+    }
+
+    return method;
+  }
+
+  private resolveLoginTwoFactorMethod(user: User): TwoFactorMethod {
+    if (
+      user.two_factor_method === TwoFactorMethod.AUTHENTICATOR &&
+      user.two_factor_secret
+    ) {
+      return TwoFactorMethod.AUTHENTICATOR;
+    }
+
+    if (
+      user.two_factor_method === TwoFactorMethod.SMS &&
+      user.phone &&
+      this.configService.get<string>('SMS_2FA_ENABLED', 'false') === 'true'
+    ) {
+      return TwoFactorMethod.SMS;
+    }
+
+    return TwoFactorMethod.EMAIL;
+  }
+
+  private async assertValidTwoFactorCode(
+    user: User,
+    code: string,
+    method: TwoFactorMethod,
+  ): Promise<void> {
+    if (method === TwoFactorMethod.AUTHENTICATOR) {
+      if (!user.two_factor_secret) {
+        throw new BadRequestException('Authenticator app is not configured');
+      }
+
+      const isValid = speakeasy.totp.verify({
+        secret: user.two_factor_secret,
+        encoding: 'base32',
+        token: code,
+        window: 1,
+      });
+
+      if (!isValid) {
+        await this.activityLogService.recordEvent({
+          userId: user.id,
+          action: 'TWO_FACTOR_VERIFICATION_FAILED',
+          module: 'Authentication',
+          metadata: { method },
+          status: ActivityLogEntryStatus.FAILED,
+          errorMessage: 'Invalid 2FA code',
+        });
+        throw new UnauthorizedException('Invalid 2FA code');
+      }
+      return;
+    }
+
+    if (
+      !user.two_factor_code ||
+      !user.two_factor_code_expires_at ||
+      user.two_factor_code_expires_at.getTime() < Date.now()
+    ) {
+      throw new UnauthorizedException('2FA code has expired');
+    }
+
+    const isValid = await bcrypt.compare(code, user.two_factor_code);
+    if (!isValid) {
+      await this.activityLogService.recordEvent({
+        userId: user.id,
+        action: 'TWO_FACTOR_VERIFICATION_FAILED',
+        module: 'Authentication',
+        metadata: { method },
+        status: ActivityLogEntryStatus.FAILED,
+        errorMessage: 'Invalid 2FA code',
+      });
+      throw new UnauthorizedException('Invalid 2FA code');
+    }
+  }
+
+  private buildAuthenticatedUserResponse(user: User, permissions: string[]) {
+    return {
+      id: user.id,
+      email: user.email,
+      first_name: user.first_name,
+      last_name: user.last_name,
+      is_super_admin: user.is_super_admin,
+      account_type: user.account_type,
+      status: user.status,
+      user_type: user.user_type
+        ? { id: user.user_type.id, name: user.user_type.name }
+        : null,
+      company_id: user.company_id,
+      permissions,
+      created_at: user.created_at,
+    };
+  }
+
+  private generateNumericCode(): string {
+    return Math.floor(100000 + Math.random() * 900000).toString();
   }
 
   private async resolvePermissionNames(user: User): Promise<string[]> {

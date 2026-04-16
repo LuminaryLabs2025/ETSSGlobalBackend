@@ -6,11 +6,13 @@ import {
   EMAIL_QUEUE,
   JOB_INVITE_EMAIL,
   JOB_PASSWORD_RESET_EMAIL,
+  JOB_TWO_FACTOR_EMAIL,
   JOB_WELCOME_EMAIL,
 } from '../queue.constants';
 import type {
   InviteEmailJobData,
   PasswordResetEmailJobData,
+  TwoFactorEmailJobData,
   WelcomeEmailJobData,
 } from '../types/email-jobs.types';
 
@@ -32,7 +34,6 @@ export class EmailProcessor extends WorkerHost {
         firstName: data.firstName,
         lastName: data.lastName,
         invitedByLabel: data.invitedByLabel,
-        tempPassword: data.tempPassword,
         joinInviteLink: data.joinInviteLink,
       });
       return;
@@ -47,6 +48,12 @@ export class EmailProcessor extends WorkerHost {
     if (job.name === JOB_PASSWORD_RESET_EMAIL) {
       const data = job.data as PasswordResetEmailJobData;
       await this.mailService.sendPasswordResetEmail(data.to, data.resetLink);
+      return;
+    }
+
+    if (job.name === JOB_TWO_FACTOR_EMAIL) {
+      const data = job.data as TwoFactorEmailJobData;
+      await this.mailService.sendTwoFactorCodeEmail(data.to, data.code);
       return;
     }
 

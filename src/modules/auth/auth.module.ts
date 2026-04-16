@@ -10,12 +10,14 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { User } from '../../database/entities/user.entity';
 import { Permission } from '../../database/entities/permission.entity';
 import { EMAIL_QUEUE } from '../queue/queue.constants';
+import { ActivityLogModule } from '../activity-log/activity-log.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([User, Permission]),
     BullModule.registerQueue({ name: EMAIL_QUEUE }),
     PassportModule.register({ defaultStrategy: 'jwt' }),
+    ActivityLogModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
