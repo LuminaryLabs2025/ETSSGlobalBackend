@@ -451,7 +451,8 @@ export class TeamMembersService {
       (user.extra_fields?.department as string | undefined) ?? null;
     return {
       id: user.id,
-      name: `${user.first_name} ${user.last_name}`.trim(),
+      first_name: user.first_name,
+      last_name: user.last_name,
       email: user.email,
       phone: user.phone ?? null,
       user_type: user.user_type

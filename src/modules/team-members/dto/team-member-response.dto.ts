@@ -21,7 +21,10 @@ export class TeamMemberResponseDto {
   id: string;
 
   @ApiProperty()
-  name: string;
+  first_name: string;
+
+  @ApiProperty()
+  last_name: string;
 
   @ApiProperty()
   email: string;
