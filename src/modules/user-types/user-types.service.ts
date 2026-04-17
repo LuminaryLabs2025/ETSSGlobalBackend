@@ -5,6 +5,7 @@ import { UserType } from '../../database/entities/user-type.entity';
 import { Permission } from '../../database/entities/permission.entity';
 import { UserTypeCategory } from '../../common/enums';
 import type { UserTypeCategoryQuery } from './dto/query-user-types.dto';
+import { UserTypeFieldOptionsService } from './user-type-field-options.service';
 
 @Injectable()
 export class UserTypesService {
@@ -13,6 +14,7 @@ export class UserTypesService {
     private readonly userTypeRepository: Repository<UserType>,
     @InjectRepository(Permission)
     private readonly permissionRepository: Repository<Permission>,
+    private readonly userTypeFieldOptionsService: UserTypeFieldOptionsService,
   ) {}
 
   /**
@@ -26,10 +28,17 @@ export class UserTypesService {
     });
 
     const matchCategory = this.resolveCategoryFilter(categoryFilter);
-    if (!matchCategory) {
-      return types;
-    }
-    return types.filter((t) => t.category === matchCategory);
+    const filtered = !matchCategory
+      ? types
+      : types.filter((t) => t.category === matchCategory);
+
+    const optionsMap =
+      await this.userTypeFieldOptionsService.buildOptionsMapForUserTypes(
+        filtered,
+      );
+    return filtered.map((t) =>
+      this.userTypeFieldOptionsService.toHydratedUserType(t, optionsMap),
+    );
   }
 
   private resolveCategoryFilter(
@@ -49,7 +58,14 @@ export class UserTypesService {
     if (!userType) {
       throw new NotFoundException('User type not found');
     }
-    return userType;
+    const optionsMap =
+      await this.userTypeFieldOptionsService.buildOptionsMapForUserTypes([
+        userType,
+      ]);
+    return this.userTypeFieldOptionsService.toHydratedUserType(
+      userType,
+      optionsMap,
+    );
   }
 
   /** Permissions this user type may be granted (invite / checkbox UI). */
@@ -77,6 +93,13 @@ export class UserTypesService {
     if (!userType) {
       throw new NotFoundException(`User type "${slug}" not found`);
     }
-    return userType;
+    const optionsMap =
+      await this.userTypeFieldOptionsService.buildOptionsMapForUserTypes([
+        userType,
+      ]);
+    return this.userTypeFieldOptionsService.toHydratedUserType(
+      userType,
+      optionsMap,
+    );
   }
 }

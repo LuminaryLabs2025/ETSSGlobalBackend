@@ -31,9 +31,9 @@ export interface UserTypeField {
   required: boolean;
   options?: UserTypeFieldOption[];
   /**
-   * When set, `options` may be empty: the client loads choices from the app
-   * (e.g. companies created for another user type). Convention is a stable
-   * string key your frontend/API agree on, e.g. `port_terminal_companies`.
+   * When set, the DB row may store `options` as empty. On **GET** `/api/user-types`
+   * (list and by id), the API resolves this key from live data and fills `options`
+   * as `{ label, value }[]` in the same shape as static options. Unknown keys yield `[]`.
    */
   optionsSource?: string;
   placeholder?: string;

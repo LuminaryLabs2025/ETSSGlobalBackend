@@ -28,6 +28,7 @@ import {
   UserTypeCategory,
 } from '../../common/enums';
 import { MetadataValidatorService } from '../../common/services/metadata-validator.service';
+import { UserTypeFieldOptionsService } from '../user-types/user-type-field-options.service';
 import { EMAIL_QUEUE, JOB_INVITE_EMAIL } from '../queue/queue.constants';
 import { normalizeEmail } from '../../common/utils/email-normalize';
 import { ActivityLogService } from '../activity-log/activity-log.service';
@@ -48,6 +49,7 @@ export class UsersService {
     @InjectRepository(UserTypePermission)
     private readonly userTypePermissionRepository: Repository<UserTypePermission>,
     private readonly metadataValidator: MetadataValidatorService,
+    private readonly userTypeFieldOptionsService: UserTypeFieldOptionsService,
     @InjectQueue(EMAIL_QUEUE)
     private readonly emailQueue: Queue,
     private readonly configService: ConfigService,
@@ -73,6 +75,10 @@ export class UsersService {
     const validatedExtra = this.metadataValidator.validate(
       userType.metadata,
       dto.extra_fields || null,
+    );
+    await this.userTypeFieldOptionsService.assertExtraFieldsReferencesValid(
+      userType.metadata,
+      validatedExtra,
     );
 
     const hashedPassword = await bcrypt.hash(randomUUID(), 12);
@@ -266,13 +272,22 @@ export class UsersService {
 
   async update(id: string, dto: UpdateUserDto): Promise<User> {
     const user = await this.findOne(id);
+    if (dto.extra_fields) {
+      const merged = { ...(user.extra_fields ?? {}), ...dto.extra_fields };
+      const validatedExtra = this.metadataValidator.validate(
+        user.user_type?.metadata ?? null,
+        merged,
+      );
+      await this.userTypeFieldOptionsService.assertExtraFieldsReferencesValid(
+        user.user_type?.metadata ?? null,
+        validatedExtra,
+      );
+      user.extra_fields = validatedExtra;
+    }
     Object.assign(user, {
       ...(dto.first_name && { first_name: dto.first_name }),
       ...(dto.last_name && { last_name: dto.last_name }),
       ...(dto.phone && { phone: dto.phone }),
-      ...(dto.extra_fields && {
-        extra_fields: { ...user.extra_fields, ...dto.extra_fields },
-      }),
     });
     await this.userRepository.save(user);
     return this.findOne(id);

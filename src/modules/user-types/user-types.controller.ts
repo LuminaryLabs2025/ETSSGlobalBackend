@@ -7,7 +7,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { UserTypesService } from './user-types.service';
 import { QueryUserTypesDto } from './dto/query-user-types.dto';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
@@ -21,6 +21,12 @@ export class UserTypesController {
   constructor(private readonly userTypesService: UserTypesService) {}
 
   @Get()
+  @ApiOperation({
+    summary: 'List user types',
+    description:
+      'Returns active user types. Any metadata field with `optionsSource` has `options` ' +
+      'hydrated server-side as `{ label, value }[]` (shipping lines, port terminals, transit parks, barrier locations).',
+  })
   @ApiQuery({
     name: 'category',
     required: false,
@@ -40,6 +46,11 @@ export class UserTypesController {
   }
 
   @Get(':id')
+  @ApiOperation({
+    summary: 'Get user type by id',
+    description:
+      'Same metadata hydration as list: `optionsSource` fields receive resolved `options`.',
+  })
   @Permissions('manage_users')
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.userTypesService.findOne(id);

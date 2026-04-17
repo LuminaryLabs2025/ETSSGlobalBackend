@@ -11,9 +11,11 @@ import { UserTypePermission } from '../../database/entities/user-type-permission
 import { MetadataValidatorService } from '../../common/services/metadata-validator.service';
 import { EMAIL_QUEUE } from '../queue/queue.constants';
 import { ActivityLogModule } from '../activity-log/activity-log.module';
+import { UserTypesModule } from '../user-types/user-types.module';
 
 @Module({
   imports: [
+    UserTypesModule,
     TypeOrmModule.forFeature([
       User,
       UserType,
