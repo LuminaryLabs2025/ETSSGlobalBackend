@@ -10,8 +10,11 @@ import {
 export class CreateTeamMemberDto {
   @IsString()
   @IsNotEmpty()
-  /** Full name; split into first / last name on save. */
-  name: string;
+  first_name: string;
+
+  @IsString()
+  @IsNotEmpty()
+  last_name: string;
 
   @IsEmail()
   @IsNotEmpty()

@@ -99,7 +99,11 @@ export class TeamMembersService {
       throw new ConflictException('A user with this email already exists');
     }
 
-    const { first_name, last_name } = this.splitName(dto.name);
+    const first_name = dto.first_name.trim();
+    const last_name = dto.last_name.trim();
+    if (!first_name || !last_name) {
+      throw new BadRequestException('first_name and last_name are required');
+    }
     const hashedPassword = await bcrypt.hash(randomUUID(), 12);
     const inviteToken = randomUUID();
     const inviteTokenExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
@@ -392,20 +396,6 @@ export class TeamMembersService {
     if (!user) throw new NotFoundException('Team member not found');
     this.assertActorCanAccessUser(actor, user);
     return user;
-  }
-
-  private splitName(name: string): { first_name: string; last_name: string } {
-    const parts = name.trim().split(/\s+/).filter(Boolean);
-    if (parts.length === 0) {
-      return { first_name: 'Team', last_name: 'Member' };
-    }
-    if (parts.length === 1) {
-      return { first_name: parts[0], last_name: parts[0] };
-    }
-    return {
-      first_name: parts[0],
-      last_name: parts.slice(1).join(' '),
-    };
   }
 
   /**
