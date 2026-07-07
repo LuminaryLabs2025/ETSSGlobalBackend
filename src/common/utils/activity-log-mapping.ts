@@ -6,6 +6,9 @@ const MODULE_BY_SEGMENT: Record<string, string> = {
   'tep-types': 'TEP Types',
   'facility-types': 'Facilities',
   'terminal-gates': 'Terminals',
+  terminals: 'Terminals',
+  'transit-parks': 'Transit Parks',
+  facilities: 'Facilities',
 };
 
 export type ActivityContext = {
@@ -20,6 +23,9 @@ const IMPORTANT_ROOTS = new Set([
   'tep-types',
   'facility-types',
   'terminal-gates',
+  'terminals',
+  'transit-parks',
+  'facilities',
 ]);
 
 function titleCaseSegment(seg: string): string {
@@ -72,6 +78,12 @@ export function inferHttpActivityContext(
     actionLabel = `${httpMethodToAction(method)} facility`;
   } else if (root === 'terminal-gates') {
     actionLabel = `${httpMethodToAction(method)} terminal`;
+  } else if (root === 'terminals') {
+    actionLabel = `${httpMethodToAction(method)} terminal`;
+  } else if (root === 'transit-parks') {
+    actionLabel = `${httpMethodToAction(method)} transit park`;
+  } else if (root === 'facilities') {
+    actionLabel = `${httpMethodToAction(method)} facility`;
   } else {
     actionLabel = `${httpMethodToAction(method)} system`;
     shouldLog = false;

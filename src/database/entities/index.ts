@@ -27,3 +27,8 @@ export {
   HandheldDevice,
   RfidTag,
 } from './app-options.entities';
+export {
+  Terminal,
+  TransitPark,
+  Facility,
+} from './terminals-parks-facilities.entities';

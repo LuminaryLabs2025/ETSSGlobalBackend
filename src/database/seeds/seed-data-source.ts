@@ -31,6 +31,11 @@ import {
   TruckLength,
   TruckType,
 } from '../entities/app-options.entities';
+import {
+  Facility,
+  Terminal,
+  TransitPark,
+} from '../entities/terminals-parks-facilities.entities';
 
 export const SEED_ENTITIES = [
   User,
@@ -61,6 +66,9 @@ export const SEED_ENTITIES = [
   Location,
   HandheldDevice,
   RfidTag,
+  Terminal,
+  TransitPark,
+  Facility,
 ];
 
 /**

@@ -16,6 +16,7 @@ import { ActivityLogModule } from './modules/activity-log/activity-log.module';
 import { QueueModule } from './modules/queue/queue.module';
 import { ProfileModule } from './modules/profile/profile.module';
 import { AppOptionsModule } from './modules/app-options/app-options.module';
+import { TerminalsParksFacilitiesModule } from './modules/terminals-parks-facilities/terminals-parks-facilities.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { AppOptionsModule } from './modules/app-options/app-options.module';
     ActivityLogModule,
     ProfileModule,
     AppOptionsModule,
+    TerminalsParksFacilitiesModule,
   ],
   providers: [
     {
