@@ -12,7 +12,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { SuperAdminGuard } from '../../common/guards';
 import { TerminalsParksFacilitiesService } from './terminals-parks-facilities.service';
 import {
@@ -26,6 +26,19 @@ import {
   UpdateTerminalDto,
   UpdateTransitParkDto,
 } from './dto/terminals-parks-facilities.dto';
+import {
+  DeleteResponseDto,
+  FacilitiesSummaryResponseDto,
+  FacilityListResponseDto,
+  FacilityResponseDto,
+  FacilityTimeslotListResponseDto,
+  TerminalListResponseDto,
+  TerminalResponseDto,
+  TerminalsSummaryResponseDto,
+  TransitParkListResponseDto,
+  TransitParkResponseDto,
+  TransitParksSummaryResponseDto,
+} from './dto/terminals-parks-facilities-response.dto';
 
 @ApiTags('terminals-transit-parks-facilities')
 @ApiBearerAuth('access-token')
@@ -38,6 +51,7 @@ export class TerminalsParksFacilitiesController {
 
   // Terminals
   @Post('terminals')
+  @ApiOkResponse({ type: TerminalResponseDto })
   async createTerminal(@Body() dto: CreateTerminalDto) {
     return this.ok(
       'Terminal created successfully',
@@ -46,6 +60,7 @@ export class TerminalsParksFacilitiesController {
   }
 
   @Get('terminals')
+  @ApiOkResponse({ type: TerminalListResponseDto })
   async findTerminals(@Query() query: QueryTerminalsParksFacilitiesDto) {
     return this.ok(
       'Terminals fetched successfully',
@@ -54,6 +69,7 @@ export class TerminalsParksFacilitiesController {
   }
 
   @Get('terminals/summary')
+  @ApiOkResponse({ type: TerminalsSummaryResponseDto })
   async terminalsSummary() {
     return this.ok(
       'Terminals summary fetched successfully',
@@ -62,6 +78,7 @@ export class TerminalsParksFacilitiesController {
   }
 
   @Get('terminals/:id')
+  @ApiOkResponse({ type: TerminalResponseDto })
   async findTerminal(@Param('id', ParseUUIDPipe) id: string) {
     return this.ok(
       'Terminal fetched successfully',
@@ -70,6 +87,7 @@ export class TerminalsParksFacilitiesController {
   }
 
   @Put('terminals/:id')
+  @ApiOkResponse({ type: TerminalResponseDto })
   async updateTerminal(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateTerminalDto,
@@ -81,6 +99,7 @@ export class TerminalsParksFacilitiesController {
   }
 
   @Patch('terminals/:id/status')
+  @ApiOkResponse({ type: TerminalResponseDto })
   async updateTerminalStatus(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateStatusDto,
@@ -92,6 +111,7 @@ export class TerminalsParksFacilitiesController {
   }
 
   @Patch('terminals/:id/enable')
+  @ApiOkResponse({ type: TerminalResponseDto })
   async enableTerminal(@Param('id', ParseUUIDPipe) id: string) {
     return this.ok(
       'Terminal enabled successfully',
@@ -102,6 +122,7 @@ export class TerminalsParksFacilitiesController {
   }
 
   @Patch('terminals/:id/disable')
+  @ApiOkResponse({ type: TerminalResponseDto })
   async disableTerminal(@Param('id', ParseUUIDPipe) id: string) {
     return this.ok(
       'Terminal disabled successfully',
@@ -112,6 +133,7 @@ export class TerminalsParksFacilitiesController {
   }
 
   @Patch('terminals/:id/booking-status')
+  @ApiOkResponse({ type: TerminalResponseDto })
   async updateTerminalBookingStatus(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateBookingStatusDto,
@@ -126,6 +148,7 @@ export class TerminalsParksFacilitiesController {
   }
 
   @Patch('terminals/:id/archive')
+  @ApiOkResponse({ type: TerminalResponseDto })
   async archiveTerminal(@Param('id', ParseUUIDPipe) id: string) {
     return this.ok(
       'Terminal archived successfully',
@@ -134,6 +157,7 @@ export class TerminalsParksFacilitiesController {
   }
 
   @Patch('terminals/:id/unarchive')
+  @ApiOkResponse({ type: TerminalResponseDto })
   async unarchiveTerminal(@Param('id', ParseUUIDPipe) id: string) {
     return this.ok(
       'Terminal unarchived successfully',
@@ -142,6 +166,7 @@ export class TerminalsParksFacilitiesController {
   }
 
   @Delete('terminals/:id')
+  @ApiOkResponse({ type: DeleteResponseDto })
   async deleteTerminal(@Param('id', ParseUUIDPipe) id: string) {
     await this.terminalsParksFacilitiesService.deleteTerminal(id);
     return this.ok('Terminal deleted successfully', null);
@@ -149,6 +174,7 @@ export class TerminalsParksFacilitiesController {
 
   // Transit parks
   @Post('transit-parks')
+  @ApiOkResponse({ type: TransitParkResponseDto })
   async createTransitPark(@Body() dto: CreateTransitParkDto) {
     return this.ok(
       'Transit park created successfully',
@@ -157,6 +183,7 @@ export class TerminalsParksFacilitiesController {
   }
 
   @Get('transit-parks')
+  @ApiOkResponse({ type: TransitParkListResponseDto })
   async findTransitParks(@Query() query: QueryTerminalsParksFacilitiesDto) {
     return this.ok(
       'Transit parks fetched successfully',
@@ -165,6 +192,7 @@ export class TerminalsParksFacilitiesController {
   }
 
   @Get('transit-parks/summary')
+  @ApiOkResponse({ type: TransitParksSummaryResponseDto })
   async transitParksSummary() {
     return this.ok(
       'Transit parks summary fetched successfully',
@@ -173,6 +201,7 @@ export class TerminalsParksFacilitiesController {
   }
 
   @Get('transit-parks/:id')
+  @ApiOkResponse({ type: TransitParkResponseDto })
   async findTransitPark(@Param('id', ParseUUIDPipe) id: string) {
     return this.ok(
       'Transit park fetched successfully',
@@ -181,6 +210,7 @@ export class TerminalsParksFacilitiesController {
   }
 
   @Put('transit-parks/:id')
+  @ApiOkResponse({ type: TransitParkResponseDto })
   async updateTransitPark(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateTransitParkDto,
@@ -192,6 +222,7 @@ export class TerminalsParksFacilitiesController {
   }
 
   @Patch('transit-parks/:id/status')
+  @ApiOkResponse({ type: TransitParkResponseDto })
   async updateTransitParkStatus(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateStatusDto,
@@ -206,6 +237,7 @@ export class TerminalsParksFacilitiesController {
   }
 
   @Patch('transit-parks/:id/enable')
+  @ApiOkResponse({ type: TransitParkResponseDto })
   async enableTransitPark(@Param('id', ParseUUIDPipe) id: string) {
     return this.ok(
       'Transit park enabled successfully',
@@ -216,6 +248,7 @@ export class TerminalsParksFacilitiesController {
   }
 
   @Patch('transit-parks/:id/disable')
+  @ApiOkResponse({ type: TransitParkResponseDto })
   async disableTransitPark(@Param('id', ParseUUIDPipe) id: string) {
     return this.ok(
       'Transit park disabled successfully',
@@ -226,6 +259,7 @@ export class TerminalsParksFacilitiesController {
   }
 
   @Patch('transit-parks/:id/archive')
+  @ApiOkResponse({ type: TransitParkResponseDto })
   async archiveTransitPark(@Param('id', ParseUUIDPipe) id: string) {
     return this.ok(
       'Transit park archived successfully',
@@ -234,6 +268,7 @@ export class TerminalsParksFacilitiesController {
   }
 
   @Patch('transit-parks/:id/unarchive')
+  @ApiOkResponse({ type: TransitParkResponseDto })
   async unarchiveTransitPark(@Param('id', ParseUUIDPipe) id: string) {
     return this.ok(
       'Transit park unarchived successfully',
@@ -242,6 +277,7 @@ export class TerminalsParksFacilitiesController {
   }
 
   @Delete('transit-parks/:id')
+  @ApiOkResponse({ type: DeleteResponseDto })
   async deleteTransitPark(@Param('id', ParseUUIDPipe) id: string) {
     await this.terminalsParksFacilitiesService.deleteTransitPark(id);
     return this.ok('Transit park deleted successfully', null);
@@ -249,6 +285,7 @@ export class TerminalsParksFacilitiesController {
 
   // Facilities
   @Post('facilities')
+  @ApiOkResponse({ type: FacilityResponseDto })
   async createFacility(@Body() dto: CreateFacilityDto) {
     return this.ok(
       'Facility created successfully',
@@ -257,6 +294,7 @@ export class TerminalsParksFacilitiesController {
   }
 
   @Get('facilities')
+  @ApiOkResponse({ type: FacilityListResponseDto })
   async findFacilities(@Query() query: QueryTerminalsParksFacilitiesDto) {
     return this.ok(
       'Facilities fetched successfully',
@@ -265,6 +303,7 @@ export class TerminalsParksFacilitiesController {
   }
 
   @Get('facilities/summary')
+  @ApiOkResponse({ type: FacilitiesSummaryResponseDto })
   async facilitiesSummary() {
     return this.ok(
       'Facilities summary fetched successfully',
@@ -273,6 +312,7 @@ export class TerminalsParksFacilitiesController {
   }
 
   @Get('facilities/:id')
+  @ApiOkResponse({ type: FacilityResponseDto })
   async findFacility(@Param('id', ParseUUIDPipe) id: string) {
     return this.ok(
       'Facility fetched successfully',
@@ -281,6 +321,7 @@ export class TerminalsParksFacilitiesController {
   }
 
   @Get('facilities/:id/timeslots')
+  @ApiOkResponse({ type: FacilityTimeslotListResponseDto })
   async listFacilityTimeslots(
     @Param('id', ParseUUIDPipe) id: string,
     @Query() query: QueryTerminalsParksFacilitiesDto,
@@ -295,6 +336,7 @@ export class TerminalsParksFacilitiesController {
   }
 
   @Put('facilities/:id')
+  @ApiOkResponse({ type: FacilityResponseDto })
   async updateFacility(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateFacilityDto,
@@ -306,6 +348,7 @@ export class TerminalsParksFacilitiesController {
   }
 
   @Patch('facilities/:id/status')
+  @ApiOkResponse({ type: FacilityResponseDto })
   async updateFacilityStatus(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateStatusDto,
@@ -317,6 +360,7 @@ export class TerminalsParksFacilitiesController {
   }
 
   @Patch('facilities/:id/enable')
+  @ApiOkResponse({ type: FacilityResponseDto })
   async enableFacility(@Param('id', ParseUUIDPipe) id: string) {
     return this.ok(
       'Facility enabled successfully',
@@ -327,6 +371,7 @@ export class TerminalsParksFacilitiesController {
   }
 
   @Patch('facilities/:id/disable')
+  @ApiOkResponse({ type: FacilityResponseDto })
   async disableFacility(@Param('id', ParseUUIDPipe) id: string) {
     return this.ok(
       'Facility disabled successfully',
@@ -337,6 +382,7 @@ export class TerminalsParksFacilitiesController {
   }
 
   @Patch('facilities/:id/archive')
+  @ApiOkResponse({ type: FacilityResponseDto })
   async archiveFacility(@Param('id', ParseUUIDPipe) id: string) {
     return this.ok(
       'Facility archived successfully',
@@ -345,6 +391,7 @@ export class TerminalsParksFacilitiesController {
   }
 
   @Patch('facilities/:id/unarchive')
+  @ApiOkResponse({ type: FacilityResponseDto })
   async unarchiveFacility(@Param('id', ParseUUIDPipe) id: string) {
     return this.ok(
       'Facility unarchived successfully',
@@ -353,6 +400,7 @@ export class TerminalsParksFacilitiesController {
   }
 
   @Delete('facilities/:id')
+  @ApiOkResponse({ type: DeleteResponseDto })
   async deleteFacility(@Param('id', ParseUUIDPipe) id: string) {
     await this.terminalsParksFacilitiesService.deleteFacility(id);
     return this.ok('Facility deleted successfully', null);

@@ -10,7 +10,7 @@
 
 - Base URL: set `NEXT_PUBLIC_API_URL` to the backend origin **including the `/api` prefix**, e.g. `http://localhost:3000/api`.
 - Auth: nothing new. All Sprint 2 endpoints use the same JWT bearer token + SuperAdmin guard as the existing users/team endpoints. The existing Axios client (`api/client.ts`) with its token injection and 401 handling works as-is.
-- Swagger: interactive docs for every endpoint below are available at `http://localhost:3000/docs`.
+- Swagger: interactive docs for every endpoint below are available at `http://localhost:3000/docs` (raw spec at `/docs-json`). Request payloads, query params, and full response schemas (envelope included) are modeled there, so you can generate types or copy shapes directly from the spec.
 - Seed data: `npm run seed` (backend) loads 6 terminals, 5 transit parks, and 5 facilities matching the design mockups, so lists render meaningful data immediately.
 
 ---
