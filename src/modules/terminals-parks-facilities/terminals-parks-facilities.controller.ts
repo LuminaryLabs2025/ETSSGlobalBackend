@@ -91,6 +91,26 @@ export class TerminalsParksFacilitiesController {
     );
   }
 
+  @Patch('terminals/:id/enable')
+  async enableTerminal(@Param('id', ParseUUIDPipe) id: string) {
+    return this.ok(
+      'Terminal enabled successfully',
+      await this.terminalsParksFacilitiesService.updateTerminalStatus(id, {
+        status: 'ACTIVE',
+      }),
+    );
+  }
+
+  @Patch('terminals/:id/disable')
+  async disableTerminal(@Param('id', ParseUUIDPipe) id: string) {
+    return this.ok(
+      'Terminal disabled successfully',
+      await this.terminalsParksFacilitiesService.updateTerminalStatus(id, {
+        status: 'INACTIVE',
+      }),
+    );
+  }
+
   @Patch('terminals/:id/booking-status')
   async updateTerminalBookingStatus(
     @Param('id', ParseUUIDPipe) id: string,
@@ -185,6 +205,26 @@ export class TerminalsParksFacilitiesController {
     );
   }
 
+  @Patch('transit-parks/:id/enable')
+  async enableTransitPark(@Param('id', ParseUUIDPipe) id: string) {
+    return this.ok(
+      'Transit park enabled successfully',
+      await this.terminalsParksFacilitiesService.updateTransitParkStatus(id, {
+        status: 'ACTIVE',
+      }),
+    );
+  }
+
+  @Patch('transit-parks/:id/disable')
+  async disableTransitPark(@Param('id', ParseUUIDPipe) id: string) {
+    return this.ok(
+      'Transit park disabled successfully',
+      await this.terminalsParksFacilitiesService.updateTransitParkStatus(id, {
+        status: 'INACTIVE',
+      }),
+    );
+  }
+
   @Patch('transit-parks/:id/archive')
   async archiveTransitPark(@Param('id', ParseUUIDPipe) id: string) {
     return this.ok(
@@ -273,6 +313,26 @@ export class TerminalsParksFacilitiesController {
     return this.ok(
       'Facility status updated successfully',
       await this.terminalsParksFacilitiesService.updateFacilityStatus(id, dto),
+    );
+  }
+
+  @Patch('facilities/:id/enable')
+  async enableFacility(@Param('id', ParseUUIDPipe) id: string) {
+    return this.ok(
+      'Facility enabled successfully',
+      await this.terminalsParksFacilitiesService.updateFacilityStatus(id, {
+        status: 'ACTIVE',
+      }),
+    );
+  }
+
+  @Patch('facilities/:id/disable')
+  async disableFacility(@Param('id', ParseUUIDPipe) id: string) {
+    return this.ok(
+      'Facility disabled successfully',
+      await this.terminalsParksFacilitiesService.updateFacilityStatus(id, {
+        status: 'INACTIVE',
+      }),
     );
   }
 

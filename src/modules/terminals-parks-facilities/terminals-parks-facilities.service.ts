@@ -123,7 +123,32 @@ export class TerminalsParksFacilitiesService {
         )?.count ?? 0,
       );
 
+    const stats = await this.terminalRepository
+      .createQueryBuilder('row')
+      .select('COUNT(*)', 'total')
+      .addSelect(`COUNT(*) FILTER (WHERE row.status = 'ACTIVE')`, 'enabled')
+      .addSelect(`COUNT(*) FILTER (WHERE row.status = 'INACTIVE')`, 'disabled')
+      .addSelect('AVG(row.approved_trucks_per_hour)', 'avg_trucks_per_hour')
+      .where('row.archived_at IS NULL')
+      .getRawOne<{
+        total: string;
+        enabled: string;
+        disabled: string;
+        avg_trucks_per_hour: string | null;
+      }>();
+
     return {
+      total: Number(stats?.total ?? 0),
+      enabled: Number(stats?.enabled ?? 0),
+      disabled: Number(stats?.disabled ?? 0),
+      avg_trucks_per_hour: stats?.avg_trucks_per_hour
+        ? Math.round(Number(stats.avg_trucks_per_hour))
+        : 0,
+      port_terminals:
+        count('APAPA', 'PORT_TERMINAL') + count('TINCAN', 'PORT_TERMINAL'),
+      non_port_terminals:
+        count('APAPA', 'NON_PORT_TERMINAL') +
+        count('TINCAN', 'NON_PORT_TERMINAL'),
       apapa_port_terminals: count('APAPA', 'PORT_TERMINAL'),
       apapa_non_port_terminals: count('APAPA', 'NON_PORT_TERMINAL'),
       tincan_port_terminals: count('TINCAN', 'PORT_TERMINAL'),
@@ -253,7 +278,33 @@ export class TerminalsParksFacilitiesService {
     const count = (type: string) =>
       Number(rows.find((row) => row.transit_park_type === type)?.count ?? 0);
 
+    const stats = await this.transitParkRepository
+      .createQueryBuilder('row')
+      .select('COUNT(*)', 'total')
+      .addSelect(`COUNT(*) FILTER (WHERE row.status = 'ACTIVE')`, 'enabled')
+      .addSelect(`COUNT(*) FILTER (WHERE row.status = 'INACTIVE')`, 'disabled')
+      .addSelect(
+        'AVG(row.approved_truck_exits_per_hour)',
+        'avg_truck_exits_per_hour',
+      )
+      .addSelect('COALESCE(SUM(row.bay_capacity), 0)', 'total_bay_capacity')
+      .where('row.archived_at IS NULL')
+      .getRawOne<{
+        total: string;
+        enabled: string;
+        disabled: string;
+        avg_truck_exits_per_hour: string | null;
+        total_bay_capacity: string;
+      }>();
+
     return {
+      total: Number(stats?.total ?? 0),
+      enabled: Number(stats?.enabled ?? 0),
+      disabled: Number(stats?.disabled ?? 0),
+      avg_truck_exits_per_hour: stats?.avg_truck_exits_per_hour
+        ? Math.round(Number(stats.avg_truck_exits_per_hour))
+        : 0,
+      total_bay_capacity: Number(stats?.total_bay_capacity ?? 0),
       pregates: count('PREGATE'),
       export_processing_terminals: count('EPT'),
     };
@@ -397,7 +448,38 @@ export class TerminalsParksFacilitiesService {
     const count = (type: string) =>
       Number(rows.find((row) => row.park_type === type)?.count ?? 0);
 
+    const stats = await this.facilityRepository
+      .createQueryBuilder('row')
+      .select('COUNT(*)', 'total')
+      .addSelect(`COUNT(*) FILTER (WHERE row.status = 'ACTIVE')`, 'enabled')
+      .addSelect(`COUNT(*) FILTER (WHERE row.status = 'INACTIVE')`, 'disabled')
+      .addSelect(
+        'AVG(row.approved_truck_exits_per_hour)',
+        'avg_truck_exits_per_hour',
+      )
+      .addSelect(
+        'COALESCE(SUM(row.daily_empty_evacuation_limit), 0)',
+        'total_daily_empty_evacuation_limit',
+      )
+      .where('row.archived_at IS NULL')
+      .getRawOne<{
+        total: string;
+        enabled: string;
+        disabled: string;
+        avg_truck_exits_per_hour: string | null;
+        total_daily_empty_evacuation_limit: string;
+      }>();
+
     return {
+      total: Number(stats?.total ?? 0),
+      enabled: Number(stats?.enabled ?? 0),
+      disabled: Number(stats?.disabled ?? 0),
+      avg_truck_exits_per_hour: stats?.avg_truck_exits_per_hour
+        ? Math.round(Number(stats.avg_truck_exits_per_hour))
+        : 0,
+      total_daily_empty_evacuation_limit: Number(
+        stats?.total_daily_empty_evacuation_limit ?? 0,
+      ),
       bonded_terminals: count('BONDED_TERMINAL'),
       truck_parks: count('TRUCK_PARK'),
       fish_van_parks: count('FISH_VAN_PARK'),
