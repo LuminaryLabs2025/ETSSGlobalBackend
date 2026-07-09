@@ -36,6 +36,15 @@ import {
   Terminal,
   TransitPark,
 } from '../entities/terminals-parks-facilities.entities';
+import {
+  Driver,
+  DriverFlag,
+  Tep,
+  TepActivityEvent,
+  TepMatchedTruck,
+  Truck,
+  TruckPenalty,
+} from '../entities/operations.entities';
 
 export const SEED_ENTITIES = [
   User,
@@ -69,6 +78,13 @@ export const SEED_ENTITIES = [
   Terminal,
   TransitPark,
   Facility,
+  Truck,
+  TruckPenalty,
+  Driver,
+  DriverFlag,
+  Tep,
+  TepMatchedTruck,
+  TepActivityEvent,
 ];
 
 /**

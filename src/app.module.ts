@@ -17,6 +17,7 @@ import { QueueModule } from './modules/queue/queue.module';
 import { ProfileModule } from './modules/profile/profile.module';
 import { AppOptionsModule } from './modules/app-options/app-options.module';
 import { TerminalsParksFacilitiesModule } from './modules/terminals-parks-facilities/terminals-parks-facilities.module';
+import { OperationsModule } from './modules/operations/operations.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { TerminalsParksFacilitiesModule } from './modules/terminals-parks-facili
     ProfileModule,
     AppOptionsModule,
     TerminalsParksFacilitiesModule,
+    OperationsModule,
   ],
   providers: [
     {

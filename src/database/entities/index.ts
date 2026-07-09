@@ -32,3 +32,12 @@ export {
   TransitPark,
   Facility,
 } from './terminals-parks-facilities.entities';
+export {
+  Truck,
+  TruckPenalty,
+  Driver,
+  DriverFlag,
+  Tep,
+  TepMatchedTruck,
+  TepActivityEvent,
+} from './operations.entities';

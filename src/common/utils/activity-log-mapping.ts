@@ -9,6 +9,10 @@ const MODULE_BY_SEGMENT: Record<string, string> = {
   terminals: 'Terminals',
   'transit-parks': 'Transit Parks',
   facilities: 'Facilities',
+  trucks: 'Trucks',
+  drivers: 'Drivers',
+  teps: 'TEPs',
+  disputes: 'Disputes',
 };
 
 export type ActivityContext = {
@@ -26,6 +30,10 @@ const IMPORTANT_ROOTS = new Set([
   'terminals',
   'transit-parks',
   'facilities',
+  'trucks',
+  'drivers',
+  'teps',
+  'disputes',
 ]);
 
 function titleCaseSegment(seg: string): string {
@@ -84,6 +92,14 @@ export function inferHttpActivityContext(
     actionLabel = `${httpMethodToAction(method)} transit park`;
   } else if (root === 'facilities') {
     actionLabel = `${httpMethodToAction(method)} facility`;
+  } else if (root === 'trucks') {
+    actionLabel = `${httpMethodToAction(method)} truck`;
+  } else if (root === 'drivers') {
+    actionLabel = `${httpMethodToAction(method)} driver`;
+  } else if (root === 'teps') {
+    actionLabel = `${httpMethodToAction(method)} TEP`;
+  } else if (root === 'disputes') {
+    actionLabel = `${httpMethodToAction(method)} dispute`;
   } else {
     actionLabel = `${httpMethodToAction(method)} system`;
     shouldLog = false;
