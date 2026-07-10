@@ -10,12 +10,22 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOkResponse,
+  ApiProduces,
+  ApiTags,
+} from '@nestjs/swagger';
 import { Response } from 'express';
 import { SuperAdminGuard } from '../../common/guards';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { DisputesService } from './disputes.service';
 import { QueryDisputesDto, ResolveDisputeDto } from './dto/operations.dto';
+import {
+  DisputeListResponseDto,
+  DisputeResponseDto,
+  DisputesSummaryResponseDto,
+} from './dto/operations-response.dto';
 
 @ApiTags('disputes')
 @ApiBearerAuth('access-token')
@@ -25,7 +35,7 @@ export class DisputesController {
   constructor(private readonly disputesService: DisputesService) {}
 
   @Get('summary')
-  @ApiOkResponse({ description: 'Disputes dashboard summary counts' })
+  @ApiOkResponse({ type: DisputesSummaryResponseDto })
   async summary() {
     return this.ok(
       'Disputes summary fetched successfully',
@@ -34,6 +44,11 @@ export class DisputesController {
   }
 
   @Get('export')
+  @ApiProduces('text/csv')
+  @ApiOkResponse({
+    description: 'CSV export of disputes (respects list query filters)',
+    schema: { type: 'string', example: 'Dispute ID,Truck Plate,...' },
+  })
   async exportCsv(@Query() query: QueryDisputesDto, @Res() res: Response) {
     const csv = await this.disputesService.exportCsv(query);
     res.set({
@@ -44,6 +59,7 @@ export class DisputesController {
   }
 
   @Get()
+  @ApiOkResponse({ type: DisputeListResponseDto })
   async findAll(@Query() query: QueryDisputesDto) {
     return this.ok(
       'Disputes fetched successfully',
@@ -52,6 +68,7 @@ export class DisputesController {
   }
 
   @Get(':id')
+  @ApiOkResponse({ type: DisputeResponseDto })
   async findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.ok(
       'Dispute fetched successfully',
@@ -60,6 +77,7 @@ export class DisputesController {
   }
 
   @Patch(':id/resolve')
+  @ApiOkResponse({ type: DisputeResponseDto })
   async resolve(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ResolveDisputeDto,

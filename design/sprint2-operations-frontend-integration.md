@@ -18,7 +18,7 @@
 List endpoints return `data: { data: T[], meta: { total, page, limit, total_pages } }`.  
 Unwrap with `res.data.data` in services.
 
-- Swagger: `http://localhost:3000/docs` — tags: `trucks`, `drivers`, `teps`, `disputes`.
+- Swagger: `http://localhost:3000/docs` — tags: `trucks`, `drivers`, `teps`, `disputes`. Every endpoint has fully modeled request payloads and response schemas (envelope included), so you can copy shapes or generate types straight from the raw spec at `/docs-json` (e.g. `TruckListResponseDto`, `DriverResponseDto`, `TepsSummaryResponseDto`, `DisputeListResponseDto`). CSV export endpoints are documented as `text/csv`.
 - Seed data: `npm run seed` (backend) loads sample trucks, drivers, TEPs, and disputed penalties.
 
 ---

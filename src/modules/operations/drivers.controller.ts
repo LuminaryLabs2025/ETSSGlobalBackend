@@ -11,7 +11,12 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOkResponse,
+  ApiProduces,
+  ApiTags,
+} from '@nestjs/swagger';
 import { Response } from 'express';
 import { SuperAdminGuard } from '../../common/guards';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -21,6 +26,11 @@ import {
   QueryDriversDto,
   ReasonDto,
 } from './dto/operations.dto';
+import {
+  DriverListResponseDto,
+  DriverResponseDto,
+  DriversSummaryResponseDto,
+} from './dto/operations-response.dto';
 
 @ApiTags('drivers')
 @ApiBearerAuth('access-token')
@@ -30,7 +40,7 @@ export class DriversController {
   constructor(private readonly driversService: DriversService) {}
 
   @Get('summary')
-  @ApiOkResponse({ description: 'Driver dashboard summary counts' })
+  @ApiOkResponse({ type: DriversSummaryResponseDto })
   async summary() {
     return this.ok(
       'Drivers summary fetched successfully',
@@ -39,6 +49,11 @@ export class DriversController {
   }
 
   @Get('export')
+  @ApiProduces('text/csv')
+  @ApiOkResponse({
+    description: 'CSV export of drivers (respects list query filters)',
+    schema: { type: 'string', example: 'First Name,Last Name,...' },
+  })
   async exportCsv(@Query() query: QueryDriversDto, @Res() res: Response) {
     const csv = await this.driversService.exportCsv(query);
     res.set({
@@ -49,6 +64,7 @@ export class DriversController {
   }
 
   @Get()
+  @ApiOkResponse({ type: DriverListResponseDto })
   async findAll(@Query() query: QueryDriversDto) {
     return this.ok(
       'Drivers fetched successfully',
@@ -57,6 +73,7 @@ export class DriversController {
   }
 
   @Get(':id')
+  @ApiOkResponse({ type: DriverResponseDto })
   async findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.ok(
       'Driver fetched successfully',
@@ -65,6 +82,7 @@ export class DriversController {
   }
 
   @Post()
+  @ApiOkResponse({ type: DriverResponseDto })
   async create(
     @Body() dto: CreateDriverDto,
     @CurrentUser('id') userId: string,
@@ -76,6 +94,7 @@ export class DriversController {
   }
 
   @Patch(':id/disable')
+  @ApiOkResponse({ type: DriverResponseDto })
   async disable(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ReasonDto,
@@ -89,6 +108,7 @@ export class DriversController {
   }
 
   @Patch(':id/archive')
+  @ApiOkResponse({ type: DriverResponseDto })
   async archive(@Param('id', ParseUUIDPipe) id: string) {
     return this.ok(
       'Driver archived successfully',
@@ -97,6 +117,7 @@ export class DriversController {
   }
 
   @Patch(':id/start-verification')
+  @ApiOkResponse({ type: DriverResponseDto })
   async startVerification(@Param('id', ParseUUIDPipe) id: string) {
     return this.ok(
       'Driver verification started successfully',
@@ -105,6 +126,7 @@ export class DriversController {
   }
 
   @Patch(':id/clear-flag')
+  @ApiOkResponse({ type: DriverResponseDto })
   async clearFlag(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ReasonDto,
@@ -118,6 +140,7 @@ export class DriversController {
   }
 
   @Patch(':id/enable')
+  @ApiOkResponse({ type: DriverResponseDto })
   async enable(@Param('id', ParseUUIDPipe) id: string) {
     return this.ok(
       'Driver enabled successfully',
