@@ -45,6 +45,27 @@ import {
   Truck,
   TruckPenalty,
 } from '../entities/operations.entities';
+import {
+  PenaltyDefinition,
+  IssuedFine,
+  FineDispute,
+  FineDisputeEvent,
+} from '../entities/fines.entities';
+import {
+  DttrTerminalRequest,
+  DttrSubmission,
+  DttrEditAudit,
+} from '../entities/dttr.entities';
+import {
+  Booking,
+  BookingTimelineEntry,
+  BookingException,
+} from '../entities/bookings.entities';
+import {
+  UtilityTicket,
+  UtilityTicketHistory,
+  UtilityAssignedPersonnel,
+} from '../entities/utility-tickets.entities';
 
 export const SEED_ENTITIES = [
   User,
@@ -85,6 +106,19 @@ export const SEED_ENTITIES = [
   Tep,
   TepMatchedTruck,
   TepActivityEvent,
+  PenaltyDefinition,
+  IssuedFine,
+  FineDispute,
+  FineDisputeEvent,
+  DttrTerminalRequest,
+  DttrSubmission,
+  DttrEditAudit,
+  Booking,
+  BookingTimelineEntry,
+  BookingException,
+  UtilityTicket,
+  UtilityTicketHistory,
+  UtilityAssignedPersonnel,
 ];
 
 /**

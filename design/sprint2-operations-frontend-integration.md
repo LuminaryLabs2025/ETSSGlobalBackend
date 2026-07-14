@@ -330,6 +330,8 @@ Bulk Upload button → `POST /api/teps/bulk` with `{ teps: CreateTepDto[] }`.
 
 ## 5. Disputes (Manage Disputes) — `/api/disputes`
 
+> **Sprint 3 update:** Fine disputes are now served by `FinesModule` (`src/modules/fines/`) using the `FineDispute` entity. See `design/sprint3-operations-frontend-integration.md` for the full Penalties / Issued Fines / Disputes integration guide. Truck-level `TruckPenalty` disputes remain on the Trucks flagged tab via `override-penalty`.
+
 Used by **PenaltiesPage** disputes tab (`types/penalties.types.ts` → `FineDispute`).
 
 ### Endpoints

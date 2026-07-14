@@ -16,6 +16,7 @@ import { backfillUserPermissionsFromTypes } from './runners/backfill-user-permis
 import { runAppOptionsSeed } from './runners/app-options.runner';
 import { runTerminalsParksFacilitiesSeed } from './runners/terminals-parks-facilities.runner';
 import { runOperationsSeed } from './runners/operations.runner';
+import { runSprint3Seed } from './runners/sprint3.runner';
 
 async function runAllSeeds(): Promise<void> {
   console.log('🌱 Maritime ETSS — running all seeds\n');
@@ -38,6 +39,7 @@ async function runAllSeeds(): Promise<void> {
     await runAppOptionsSeed(dataSource);
     await runTerminalsParksFacilitiesSeed(dataSource);
     await runOperationsSeed(dataSource);
+    await runSprint3Seed(dataSource);
 
     console.log('\n🎉 All seeds completed successfully!');
   } finally {

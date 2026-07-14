@@ -41,3 +41,24 @@ export {
   TepMatchedTruck,
   TepActivityEvent,
 } from './operations.entities';
+export {
+  PenaltyDefinition,
+  IssuedFine,
+  FineDispute,
+  FineDisputeEvent,
+} from './fines.entities';
+export {
+  DttrTerminalRequest,
+  DttrSubmission,
+  DttrEditAudit,
+} from './dttr.entities';
+export {
+  Booking,
+  BookingTimelineEntry,
+  BookingException,
+} from './bookings.entities';
+export {
+  UtilityTicket,
+  UtilityTicketHistory,
+  UtilityAssignedPersonnel,
+} from './utility-tickets.entities';

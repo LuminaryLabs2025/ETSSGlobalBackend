@@ -18,6 +18,10 @@ import { ProfileModule } from './modules/profile/profile.module';
 import { AppOptionsModule } from './modules/app-options/app-options.module';
 import { TerminalsParksFacilitiesModule } from './modules/terminals-parks-facilities/terminals-parks-facilities.module';
 import { OperationsModule } from './modules/operations/operations.module';
+import { FinesModule } from './modules/fines/fines.module';
+import { DttrModule } from './modules/dttr/dttr.module';
+import { BookingsModule } from './modules/bookings/bookings.module';
+import { UtilityTicketsModule } from './modules/utility-tickets/utility-tickets.module';
 
 @Module({
   imports: [
@@ -40,6 +44,10 @@ import { OperationsModule } from './modules/operations/operations.module';
     AppOptionsModule,
     TerminalsParksFacilitiesModule,
     OperationsModule,
+    FinesModule,
+    DttrModule,
+    BookingsModule,
+    UtilityTicketsModule,
   ],
   providers: [
     {
