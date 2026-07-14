@@ -11,7 +11,12 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOkResponse,
+  ApiProduces,
+  ApiTags,
+} from '@nestjs/swagger';
 import { Response } from 'express';
 import { SuperAdminGuard } from '../../common/guards';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -22,6 +27,12 @@ import {
   QueryTrucksDto,
   ReasonDto,
 } from './dto/operations.dto';
+import {
+  BulkTrucksResponseDto,
+  TruckListResponseDto,
+  TruckResponseDto,
+  TrucksSummaryResponseDto,
+} from './dto/operations-response.dto';
 
 @ApiTags('trucks')
 @ApiBearerAuth('access-token')
@@ -31,7 +42,7 @@ export class TrucksController {
   constructor(private readonly trucksService: TrucksService) {}
 
   @Get('summary')
-  @ApiOkResponse({ description: 'Truck dashboard summary counts' })
+  @ApiOkResponse({ type: TrucksSummaryResponseDto })
   async summary() {
     return this.ok(
       'Trucks summary fetched successfully',
@@ -40,6 +51,11 @@ export class TrucksController {
   }
 
   @Get('export')
+  @ApiProduces('text/csv')
+  @ApiOkResponse({
+    description: 'CSV export of trucks (respects list query filters)',
+    schema: { type: 'string', example: 'Plate Number,Truck Type,...' },
+  })
   async exportCsv(@Query() query: QueryTrucksDto, @Res() res: Response) {
     const csv = await this.trucksService.exportCsv(query);
     res.set({
@@ -50,7 +66,7 @@ export class TrucksController {
   }
 
   @Get()
-  @ApiOkResponse({ description: 'Paginated truck list' })
+  @ApiOkResponse({ type: TruckListResponseDto })
   async findAll(@Query() query: QueryTrucksDto) {
     return this.ok(
       'Trucks fetched successfully',
@@ -59,6 +75,7 @@ export class TrucksController {
   }
 
   @Get(':id')
+  @ApiOkResponse({ type: TruckResponseDto })
   async findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.ok(
       'Truck fetched successfully',
@@ -67,6 +84,7 @@ export class TrucksController {
   }
 
   @Post()
+  @ApiOkResponse({ type: TruckResponseDto })
   async create(@Body() dto: CreateTruckDto, @CurrentUser('id') userId: string) {
     return this.ok(
       'Truck created successfully',
@@ -75,6 +93,7 @@ export class TrucksController {
   }
 
   @Post('bulk')
+  @ApiOkResponse({ type: BulkTrucksResponseDto })
   async bulkCreate(
     @Body() dto: BulkCreateTrucksDto,
     @CurrentUser('id') userId: string,
@@ -86,6 +105,7 @@ export class TrucksController {
   }
 
   @Patch(':id/disable')
+  @ApiOkResponse({ type: TruckResponseDto })
   async disable(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ReasonDto,
@@ -99,6 +119,7 @@ export class TrucksController {
   }
 
   @Patch(':id/archive')
+  @ApiOkResponse({ type: TruckResponseDto })
   async archive(@Param('id', ParseUUIDPipe) id: string) {
     return this.ok(
       'Truck archived successfully',
@@ -107,6 +128,7 @@ export class TrucksController {
   }
 
   @Patch(':id/request-verification')
+  @ApiOkResponse({ type: TruckResponseDto })
   async requestVerification(@Param('id', ParseUUIDPipe) id: string) {
     return this.ok(
       'MSS verification requested successfully',
@@ -115,6 +137,7 @@ export class TrucksController {
   }
 
   @Patch(':id/override-penalty')
+  @ApiOkResponse({ type: TruckResponseDto })
   async overridePenalty(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ReasonDto,
@@ -128,6 +151,7 @@ export class TrucksController {
   }
 
   @Patch(':id/re-enable')
+  @ApiOkResponse({ type: TruckResponseDto })
   async reEnable(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ReasonDto,

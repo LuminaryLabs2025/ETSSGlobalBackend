@@ -17,8 +17,6 @@ import { DriversController } from './drivers.controller';
 import { DriversService } from './drivers.service';
 import { TepsController } from './teps.controller';
 import { TepsService } from './teps.service';
-import { DisputesController } from './disputes.controller';
-import { DisputesService } from './disputes.service';
 
 @Module({
   imports: [
@@ -34,12 +32,7 @@ import { DisputesService } from './disputes.service';
       User,
     ]),
   ],
-  controllers: [
-    TrucksController,
-    DriversController,
-    TepsController,
-    DisputesController,
-  ],
-  providers: [TrucksService, DriversService, TepsService, DisputesService],
+  controllers: [TrucksController, DriversController, TepsController],
+  providers: [TrucksService, DriversService, TepsService],
 })
 export class OperationsModule {}

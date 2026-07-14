@@ -11,7 +11,12 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOkResponse,
+  ApiProduces,
+  ApiTags,
+} from '@nestjs/swagger';
 import { Response } from 'express';
 import { SuperAdminGuard } from '../../common/guards';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -22,6 +27,12 @@ import {
   QueryTepsDto,
   ReasonDto,
 } from './dto/operations.dto';
+import {
+  BulkTepsResponseDto,
+  TepListResponseDto,
+  TepResponseDto,
+  TepsSummaryResponseDto,
+} from './dto/operations-response.dto';
 
 @ApiTags('teps')
 @ApiBearerAuth('access-token')
@@ -31,7 +42,7 @@ export class TepsController {
   constructor(private readonly tepsService: TepsService) {}
 
   @Get('summary')
-  @ApiOkResponse({ description: 'TEP dashboard summary counts' })
+  @ApiOkResponse({ type: TepsSummaryResponseDto })
   async summary() {
     return this.ok(
       'TEPs summary fetched successfully',
@@ -40,6 +51,11 @@ export class TepsController {
   }
 
   @Get('export')
+  @ApiProduces('text/csv')
+  @ApiOkResponse({
+    description: 'CSV export of TEPs (respects list query filters)',
+    schema: { type: 'string', example: 'Reference Number,Classification,...' },
+  })
   async exportCsv(@Query() query: QueryTepsDto, @Res() res: Response) {
     const csv = await this.tepsService.exportCsv(query);
     res.set({
@@ -50,6 +66,7 @@ export class TepsController {
   }
 
   @Get()
+  @ApiOkResponse({ type: TepListResponseDto })
   async findAll(@Query() query: QueryTepsDto) {
     return this.ok(
       'TEPs fetched successfully',
@@ -58,6 +75,7 @@ export class TepsController {
   }
 
   @Get(':id')
+  @ApiOkResponse({ type: TepResponseDto })
   async findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.ok(
       'TEP fetched successfully',
@@ -66,6 +84,7 @@ export class TepsController {
   }
 
   @Post()
+  @ApiOkResponse({ type: TepResponseDto })
   async create(@Body() dto: CreateTepDto, @CurrentUser('id') userId: string) {
     return this.ok(
       'TEP created successfully',
@@ -74,6 +93,7 @@ export class TepsController {
   }
 
   @Post('bulk')
+  @ApiOkResponse({ type: BulkTepsResponseDto })
   async bulkCreate(
     @Body() dto: BulkCreateTepsDto,
     @CurrentUser('id') userId: string,
@@ -85,6 +105,7 @@ export class TepsController {
   }
 
   @Patch(':id/revoke')
+  @ApiOkResponse({ type: TepResponseDto })
   async revoke(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ReasonDto,

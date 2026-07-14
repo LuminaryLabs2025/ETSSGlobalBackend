@@ -19,27 +19,27 @@ import {
 import { Response } from 'express';
 import { SuperAdminGuard } from '../../common/guards';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { DisputesService } from './disputes.service';
-import { QueryDisputesDto, ResolveDisputeDto } from './dto/operations.dto';
+import { FineDisputesService } from './fine-disputes.service';
+import { QueryFineDisputesDto, ResolveFineDisputeDto } from './dto/fines.dto';
 import {
-  DisputeListResponseDto,
-  DisputeResponseDto,
   DisputesSummaryResponseDto,
-} from './dto/operations-response.dto';
+  FineDisputeListResponseDto,
+  FineDisputeResponseDto,
+} from './dto/fines-response.dto';
 
 @ApiTags('disputes')
 @ApiBearerAuth('access-token')
 @Controller('api/disputes')
 @UseGuards(AuthGuard('jwt'), SuperAdminGuard)
-export class DisputesController {
-  constructor(private readonly disputesService: DisputesService) {}
+export class FineDisputesController {
+  constructor(private readonly fineDisputesService: FineDisputesService) {}
 
   @Get('summary')
   @ApiOkResponse({ type: DisputesSummaryResponseDto })
   async summary() {
     return this.ok(
       'Disputes summary fetched successfully',
-      await this.disputesService.disputesSummary(),
+      await this.fineDisputesService.disputesSummary(),
     );
   }
 
@@ -49,8 +49,8 @@ export class DisputesController {
     description: 'CSV export of disputes (respects list query filters)',
     schema: { type: 'string', example: 'Dispute ID,Truck Plate,...' },
   })
-  async exportCsv(@Query() query: QueryDisputesDto, @Res() res: Response) {
-    const csv = await this.disputesService.exportCsv(query);
+  async exportCsv(@Query() query: QueryFineDisputesDto, @Res() res: Response) {
+    const csv = await this.fineDisputesService.exportCsv(query);
     res.set({
       'Content-Type': 'text/csv',
       'Content-Disposition': `attachment; filename=disputes-export-${Date.now()}.csv`,
@@ -59,34 +59,34 @@ export class DisputesController {
   }
 
   @Get()
-  @ApiOkResponse({ type: DisputeListResponseDto })
-  async findAll(@Query() query: QueryDisputesDto) {
+  @ApiOkResponse({ type: FineDisputeListResponseDto })
+  async findAll(@Query() query: QueryFineDisputesDto) {
     return this.ok(
       'Disputes fetched successfully',
-      await this.disputesService.findDisputes(query),
+      await this.fineDisputesService.findDisputes(query),
     );
   }
 
   @Get(':id')
-  @ApiOkResponse({ type: DisputeResponseDto })
+  @ApiOkResponse({ type: FineDisputeResponseDto })
   async findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.ok(
       'Dispute fetched successfully',
-      await this.disputesService.findDispute(id),
+      await this.fineDisputesService.findDispute(id),
     );
   }
 
   @Patch(':id/resolve')
-  @ApiOkResponse({ type: DisputeResponseDto })
+  @ApiOkResponse({ type: FineDisputeResponseDto })
   async resolve(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: ResolveDisputeDto,
+    @Body() dto: ResolveFineDisputeDto,
     @CurrentUser() user: { first_name: string; last_name: string },
   ) {
     const actor = `${user.first_name} ${user.last_name}`;
     return this.ok(
       'Dispute resolved successfully',
-      await this.disputesService.resolveDispute(id, dto, actor),
+      await this.fineDisputesService.resolveDispute(id, dto, actor),
     );
   }
 
