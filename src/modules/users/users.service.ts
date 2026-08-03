@@ -181,6 +181,16 @@ export class UsersService {
       });
     }
 
+    if (query.user_type_category) {
+      const category =
+        query.user_type_category === 'INTERNAL'
+          ? UserTypeCategory.SYSTEM
+          : query.user_type_category;
+      qb.andWhere('userType.category = :userTypeCategory', {
+        userTypeCategory: category,
+      });
+    }
+
     if (query.account_type) {
       qb.andWhere('user.account_type = :accountType', {
         accountType: query.account_type,
