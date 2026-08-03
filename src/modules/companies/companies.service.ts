@@ -41,7 +41,7 @@ export class CompaniesService {
   async findOne(id: string): Promise<Company> {
     const company = await this.companyRepository.findOne({
       where: { id },
-      relations: ['users', 'team_members', 'user_type'],
+      relations: ['users', 'user_type'],
     });
     if (!company) {
       throw new NotFoundException('Company not found');

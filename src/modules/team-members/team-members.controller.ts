@@ -62,7 +62,7 @@ export class TeamMembersController {
 
   @Get('summary')
   @Permissions('manage_users')
-  @ApiOperation({ summary: 'Team member counts (sub-accounts only)' })
+  @ApiOperation({ summary: 'Team member counts (all users in scope)' })
   @ApiOkResponse({ type: TeamMemberSummaryResponseDto })
   getSummary(@CurrentUser() user: any) {
     return this.teamMembersService.getSummary({
@@ -74,7 +74,11 @@ export class TeamMembersController {
 
   @Get()
   @Permissions('manage_users')
-  @ApiOperation({ summary: 'List team members (paginated, filtered)' })
+  @ApiOperation({
+    summary: 'List team members (paginated, filtered)',
+    description:
+      'Returns all users in scope, including SYSTEM / PRIMARY / SUB_ACCOUNT and the requesting Super Admin. Non–Super Admins are limited to their company.',
+  })
   @ApiOkResponse({ type: TeamMemberListResponseDto })
   findAll(@Query() query: QueryTeamMembersDto, @CurrentUser() user: any) {
     return this.teamMembersService.findAll(query, {

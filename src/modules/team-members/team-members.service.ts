@@ -281,7 +281,7 @@ export class TeamMembersService {
 
   async findOne(id: string, actor: RequestActor): Promise<User> {
     const user = await this.userRepository.findOne({
-      where: { id, account_type: AccountType.SUB_ACCOUNT },
+      where: { id },
       relations: [
         'user_type',
         'company',
@@ -295,28 +295,28 @@ export class TeamMembersService {
   }
 
   async disable(id: string, actor: RequestActor): Promise<User> {
-    const user = await this.getSubAccountOrThrow(id, actor);
+    const user = await this.getManagedUserOrThrow(id, actor);
     user.status = UserStatus.INACTIVE;
     await this.userRepository.save(user);
     return this.findOne(id, actor);
   }
 
   async enable(id: string, actor: RequestActor): Promise<User> {
-    const user = await this.getSubAccountOrThrow(id, actor);
+    const user = await this.getManagedUserOrThrow(id, actor);
     user.status = UserStatus.ACTIVE;
     await this.userRepository.save(user);
     return this.findOne(id, actor);
   }
 
   async archive(id: string, actor: RequestActor): Promise<User> {
-    const user = await this.getSubAccountOrThrow(id, actor);
+    const user = await this.getManagedUserOrThrow(id, actor);
     user.status = UserStatus.ARCHIVED;
     await this.userRepository.save(user);
     return this.findOne(id, actor);
   }
 
   async resendInvite(id: string, actor: RequestActor): Promise<{ sent: true }> {
-    const user = await this.getSubAccountOrThrow(id, actor);
+    const user = await this.getManagedUserOrThrow(id, actor);
     const inviteToken = randomUUID();
     const inviteTokenExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     user.status = UserStatus.AWAITING_ACTIVATION;
@@ -353,9 +353,7 @@ export class TeamMembersService {
   // ─── Helpers ───
 
   private buildScopedQuery(actor: RequestActor) {
-    const qb = this.userRepository
-      .createQueryBuilder('user')
-      .where('user.account_type = :sub', { sub: AccountType.SUB_ACCOUNT });
+    const qb = this.userRepository.createQueryBuilder('user');
 
     if (!actor.is_super_admin) {
       if (!actor.company_id) {
@@ -392,12 +390,12 @@ export class TeamMembersService {
     }
   }
 
-  private async getSubAccountOrThrow(
+  private async getManagedUserOrThrow(
     id: string,
     actor: RequestActor,
   ): Promise<User> {
     const user = await this.userRepository.findOne({
-      where: { id, account_type: AccountType.SUB_ACCOUNT },
+      where: { id },
       relations: ['user_type', 'company'],
     });
     if (!user) throw new NotFoundException('Team member not found');
