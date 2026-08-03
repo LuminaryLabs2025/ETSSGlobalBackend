@@ -18,6 +18,7 @@ import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { QueryUsersDto } from './dto/query-users.dto';
+import { QueryUsersSummaryDto } from './dto/query-users-summary.dto';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { Permissions } from '../../common/decorators/permissions.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -49,8 +50,8 @@ export class UsersController {
   @Get('summary')
   @Permissions('view_dashboard')
   @ApiOkResponse({ type: UserSummaryResponseDto })
-  getSummary() {
-    return this.usersService.getSummary();
+  getSummary(@Query() query: QueryUsersSummaryDto) {
+    return this.usersService.getSummary(query);
   }
 
   @Get('export')

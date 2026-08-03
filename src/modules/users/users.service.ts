@@ -21,6 +21,7 @@ import { UserTypePermission } from '../../database/entities/user-type-permission
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { QueryUsersDto } from './dto/query-users.dto';
+import { QueryUsersSummaryDto } from './dto/query-users-summary.dto';
 import {
   AccountType,
   TwoFactorMethod,
@@ -181,13 +182,12 @@ export class UsersService {
       });
     }
 
-    if (query.user_type_category) {
-      const category =
-        query.user_type_category === 'INTERNAL'
-          ? UserTypeCategory.SYSTEM
-          : query.user_type_category;
+    const userTypeCategory = this.resolveUserTypeCategory(
+      query.user_type_category,
+    );
+    if (userTypeCategory) {
       qb.andWhere('userType.category = :userTypeCategory', {
-        userTypeCategory: category,
+        userTypeCategory,
       });
     }
 
@@ -365,30 +365,46 @@ export class UsersService {
     return { sent: true };
   }
 
-  async getSummary() {
-    const total = await this.userRepository.count();
-    const active = await this.userRepository.count({
-      where: { status: UserStatus.ACTIVE },
-    });
-    const inactive = await this.userRepository.count({
-      where: { status: UserStatus.INACTIVE },
-    });
-    const awaiting = await this.userRepository.count({
-      where: { status: UserStatus.AWAITING_ACTIVATION },
-    });
-    const archived = await this.userRepository.count({
-      where: { status: UserStatus.ARCHIVED },
-    });
+  async getSummary(query: QueryUsersSummaryDto = {}) {
+    const category = this.resolveUserTypeCategory(query.user_type_category);
 
-    const byType = await this.userRepository
+    const countByStatus = async (status?: UserStatus) => {
+      const qb = this.userRepository
+        .createQueryBuilder('user')
+        .leftJoin('user.user_type', 'ut');
+
+      if (category) {
+        qb.andWhere('ut.category = :category', { category });
+      }
+      if (status) {
+        qb.andWhere('user.status = :status', { status });
+      }
+
+      return qb.getCount();
+    };
+
+    const [total, active, inactive, awaiting, archived] = await Promise.all([
+      countByStatus(),
+      countByStatus(UserStatus.ACTIVE),
+      countByStatus(UserStatus.INACTIVE),
+      countByStatus(UserStatus.AWAITING_ACTIVATION),
+      countByStatus(UserStatus.ARCHIVED),
+    ]);
+
+    const byTypeQb = this.userRepository
       .createQueryBuilder('user')
       .leftJoin('user.user_type', 'ut')
       .select('ut.name', 'user_type')
       .addSelect('ut.category', 'category')
       .addSelect('COUNT(user.id)', 'count')
       .groupBy('ut.name')
-      .addGroupBy('ut.category')
-      .getRawMany();
+      .addGroupBy('ut.category');
+
+    if (category) {
+      byTypeQb.andWhere('ut.category = :category', { category });
+    }
+
+    const byType = await byTypeQb.getRawMany();
 
     return {
       total,
@@ -402,6 +418,14 @@ export class UsersService {
         count: parseInt(row.count, 10),
       })),
     };
+  }
+
+  private resolveUserTypeCategory(
+    value?: 'SYSTEM' | 'EXTERNAL' | 'INTERNAL',
+  ): UserTypeCategory | undefined {
+    if (!value) return undefined;
+    if (value === 'EXTERNAL') return UserTypeCategory.EXTERNAL;
+    return UserTypeCategory.SYSTEM;
   }
 
   async exportCsv(query: QueryUsersDto): Promise<string> {
