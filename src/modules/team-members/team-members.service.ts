@@ -202,8 +202,10 @@ export class TeamMembersService {
       qb.andWhere('user.status = :st', { st: query.status });
     }
     if (query.company_id) {
-      if (!actor.is_super_admin) {
-        throw new ForbiddenException('Only Super Admin may filter by company');
+      if (!actor.company_id || query.company_id !== actor.company_id) {
+        throw new ForbiddenException(
+          'You can only list team members for your own company',
+        );
       }
       qb.andWhere('user.company_id = :fcid', { fcid: query.company_id });
     }
@@ -355,12 +357,11 @@ export class TeamMembersService {
   private buildScopedQuery(actor: RequestActor) {
     const qb = this.userRepository.createQueryBuilder('user');
 
-    if (!actor.is_super_admin) {
-      if (!actor.company_id) {
-        qb.andWhere('1 = 0');
-      } else {
-        qb.andWhere('user.company_id = :cid', { cid: actor.company_id });
-      }
+    // Always scope to the requester's company (including Super Admin → Maritime ETSS)
+    if (!actor.company_id) {
+      qb.andWhere('1 = 0');
+    } else {
+      qb.andWhere('user.company_id = :cid', { cid: actor.company_id });
     }
 
     return qb;
@@ -384,7 +385,6 @@ export class TeamMembersService {
   }
 
   private assertActorCanAccessUser(actor: RequestActor, user: User) {
-    if (actor.is_super_admin) return;
     if (!actor.company_id || user.company_id !== actor.company_id) {
       throw new ForbiddenException('Access denied');
     }

@@ -77,7 +77,7 @@ export class TeamMembersController {
   @ApiOperation({
     summary: 'List team members (paginated, filtered)',
     description:
-      'Returns all users in scope, including SYSTEM / PRIMARY / SUB_ACCOUNT and the requesting Super Admin. Non–Super Admins are limited to their company.',
+      'Returns all users under the requester company (SYSTEM / PRIMARY / SUB_ACCOUNT), including the requester. Super Admins see Maritime ETSS company users only — not external organizations.',
   })
   @ApiOkResponse({ type: TeamMemberListResponseDto })
   findAll(@Query() query: QueryTeamMembersDto, @CurrentUser() user: any) {

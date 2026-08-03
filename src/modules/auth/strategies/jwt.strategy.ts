@@ -41,7 +41,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       first_name: user.first_name,
       last_name: user.last_name,
       is_super_admin: payload.is_super_admin,
-      company_id: payload.company_id,
+      // Prefer live DB value so company reassignment takes effect without re-login
+      company_id: user.company_id ?? payload.company_id ?? null,
       permissions: payload.permissions,
     };
   }
