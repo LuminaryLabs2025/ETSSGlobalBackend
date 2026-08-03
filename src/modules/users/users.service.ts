@@ -32,6 +32,7 @@ import { UserTypeFieldOptionsService } from '../user-types/user-type-field-optio
 import { EMAIL_QUEUE, JOB_INVITE_EMAIL } from '../queue/queue.constants';
 import { normalizeEmail } from '../../common/utils/email-normalize';
 import { ActivityLogService } from '../activity-log/activity-log.service';
+import { CompaniesService } from '../companies/companies.service';
 
 @Injectable()
 export class UsersService {
@@ -54,6 +55,7 @@ export class UsersService {
     private readonly emailQueue: Queue,
     private readonly configService: ConfigService,
     private readonly activityLogService: ActivityLogService,
+    private readonly companiesService: CompaniesService,
   ) {}
 
   async create(dto: CreateUserDto, createdById?: string): Promise<User> {
@@ -93,6 +95,9 @@ export class UsersService {
         );
       }
       company = await this.createOrFindCompany(dto, userType, validatedExtra);
+    } else {
+      // SYSTEM user types default to the platform company
+      company = await this.companiesService.ensureMaritimeEtssCompany();
     }
 
     const inviteToken = randomUUID();

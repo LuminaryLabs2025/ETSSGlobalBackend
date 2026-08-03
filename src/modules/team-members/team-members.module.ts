@@ -11,9 +11,11 @@ import { UserTypePermission } from '../../database/entities/user-type-permission
 import { Permission } from '../../database/entities/permission.entity';
 import { EMAIL_QUEUE } from '../queue/queue.constants';
 import { ActivityLogModule } from '../activity-log/activity-log.module';
+import { CompaniesModule } from '../companies/companies.module';
 
 @Module({
   imports: [
+    CompaniesModule,
     TypeOrmModule.forFeature([
       User,
       UserType,

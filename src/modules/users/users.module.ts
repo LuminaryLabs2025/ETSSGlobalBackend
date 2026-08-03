@@ -12,10 +12,12 @@ import { MetadataValidatorService } from '../../common/services/metadata-validat
 import { EMAIL_QUEUE } from '../queue/queue.constants';
 import { ActivityLogModule } from '../activity-log/activity-log.module';
 import { UserTypesModule } from '../user-types/user-types.module';
+import { CompaniesModule } from '../companies/companies.module';
 
 @Module({
   imports: [
     UserTypesModule,
+    CompaniesModule,
     TypeOrmModule.forFeature([
       User,
       UserType,

@@ -30,6 +30,7 @@ import {
 import { normalizeEmail } from '../../common/utils/email-normalize';
 import { EMAIL_QUEUE, JOB_INVITE_EMAIL } from '../queue/queue.constants';
 import { ActivityLogService } from '../activity-log/activity-log.service';
+import { CompaniesService } from '../companies/companies.service';
 
 type RequestActor = {
   id: string;
@@ -58,6 +59,7 @@ export class TeamMembersService {
     private readonly emailQueue: Queue,
     private readonly configService: ConfigService,
     private readonly activityLogService: ActivityLogService,
+    private readonly companiesService: CompaniesService,
   ) {}
 
   async create(
@@ -80,6 +82,11 @@ export class TeamMembersService {
           'External user types can only be invited by accounts that belong to a company (your JWT must include company_id). Super admins inviting external members need a company-scoped session.',
         );
       }
+    } else {
+      // SYSTEM team members belong to the platform company
+      const platformCompany =
+        await this.companiesService.ensureMaritimeEtssCompany();
+      companyId = platformCompany.id;
     }
 
     this.assertActorCanManageCompany(actor, companyId);
@@ -368,7 +375,7 @@ export class TeamMembersService {
     if (actor.is_super_admin) return;
     if (companyId == null) {
       throw new ForbiddenException(
-        'Only Super Admin can create system team members (no company)',
+        'Only Super Admin can create team members without a company',
       );
     }
     if (actor.company_id !== companyId) {

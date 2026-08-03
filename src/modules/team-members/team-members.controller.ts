@@ -41,7 +41,7 @@ export class TeamMembersController {
   @ApiOperation({
     summary: 'Create team member (sub-account user)',
     description:
-      'Creates a User with account_type SUB_ACCOUNT. company_id is taken from the inviter JWT for external types; system types have no company. Do not send company_id in the body.',
+      'Creates a User with account_type SUB_ACCOUNT. External invites use the inviter company_id from JWT. SYSTEM types are assigned to the Maritime ETSS platform company. Do not send company_id in the body.',
   })
   @ApiOkResponse({ type: TeamMemberResponseDto })
   create(
