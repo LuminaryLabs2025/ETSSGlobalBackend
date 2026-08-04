@@ -1,7 +1,15 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
-import { Company, Truck, TruckPenalty, User } from '../../database/entities';
+import {
+  Company,
+  Truck,
+  TruckCapacity,
+  TruckLength,
+  TruckPenalty,
+  TruckType,
+  User,
+} from '../../database/entities';
 import {
   BulkCreateTrucksDto,
   CreateTruckDto,
@@ -12,7 +20,6 @@ import {
   applySearch,
   applyTruckCategoryFilter,
   mapTruckResponse,
-  nextSequentialCode,
   paginateQueryBuilder,
   requireEntity,
   saveWithConflict,
@@ -24,6 +31,12 @@ export class TrucksService {
   constructor(
     @InjectRepository(Truck)
     private readonly truckRepository: Repository<Truck>,
+    @InjectRepository(TruckType)
+    private readonly truckTypeRepository: Repository<TruckType>,
+    @InjectRepository(TruckLength)
+    private readonly truckLengthRepository: Repository<TruckLength>,
+    @InjectRepository(TruckCapacity)
+    private readonly truckCapacityRepository: Repository<TruckCapacity>,
     @InjectRepository(TruckPenalty)
     private readonly penaltyRepository: Repository<TruckPenalty>,
     @InjectRepository(Company)
@@ -33,7 +46,11 @@ export class TrucksService {
   ) {}
 
   async findTrucks(query: QueryTrucksDto) {
-    const qb = this.truckRepository.createQueryBuilder('row');
+    const qb = this.truckRepository
+      .createQueryBuilder('row')
+      .leftJoinAndSelect('row.truck_type', 'truckType')
+      .leftJoinAndSelect('row.truck_length', 'truckLength')
+      .leftJoinAndSelect('row.truck_capacity', 'truckCapacity');
     applyTruckCategoryFilter(qb, query.category);
     applySearch(
       qb,
@@ -59,8 +76,10 @@ export class TrucksService {
     if (query.truck_status?.trim() && query.truck_status !== 'All') {
       qb.andWhere('row.truck_status = :ts', { ts: query.truck_status.trim() });
     }
-    if (query.truck_type?.trim() && query.truck_type !== 'All') {
-      qb.andWhere('row.truck_type = :tt', { tt: query.truck_type.trim() });
+    if (query.truck_type_id) {
+      qb.andWhere('row.truck_type_id = :truckTypeId', {
+        truckTypeId: query.truck_type_id,
+      });
     }
     if (query.visibility?.trim() && query.visibility !== 'All') {
       qb.andWhere('row.visibility = :vis', { vis: query.visibility.trim() });
@@ -149,11 +168,7 @@ export class TrucksService {
   }
 
   async findTruck(id: string) {
-    const truck = await requireEntity(
-      this.truckRepository,
-      id,
-      'Truck not found',
-    );
+    const truck = await this.requireTruck(id);
     const penalty = await this.activePenaltyForTruck(id);
     return mapTruckResponse(truck, penalty);
   }
@@ -164,9 +179,27 @@ export class TrucksService {
       dto.transporter_company_id,
       'Transporter company not found',
     );
+    await requireEntity(
+      this.truckTypeRepository,
+      dto.truck_type_id,
+      'Truck type not found',
+    );
+    await this.assertLengthBelongsToType(dto.truck_length_id, dto.truck_type_id);
+    await this.assertCapacityBelongsToType(
+      dto.truck_capacity_id,
+      dto.truck_type_id,
+    );
+
     const user = await this.userRepository.findOne({ where: { id: userId } });
     const truck = this.truckRepository.create({
-      ...dto,
+      plate_number: dto.plate_number,
+      truck_type_id: dto.truck_type_id,
+      color: dto.color ?? null,
+      chassis_number: dto.chassis_number ?? null,
+      brand: dto.brand ?? null,
+      model: dto.model ?? null,
+      truck_length_id: dto.truck_length_id ?? null,
+      truck_capacity_id: dto.truck_capacity_id ?? null,
       registration_status: 'UNVERIFIED',
       visibility: dto.visibility ?? 'PRIVATE',
       transporter_company_id: company.id,
@@ -181,7 +214,7 @@ export class TrucksService {
       truck,
       'A truck with this plate number already exists',
     );
-    return mapTruckResponse(saved);
+    return mapTruckResponse(await this.requireTruck(saved.id));
   }
 
   async bulkCreateTrucks(dto: BulkCreateTrucksDto, userId: string) {
@@ -198,37 +231,25 @@ export class TrucksService {
   }
 
   async disableTruck(id: string, dto: ReasonDto, actorName: string) {
-    const truck = await requireEntity(
-      this.truckRepository,
-      id,
-      'Truck not found',
-    );
+    const truck = await this.requireTruck(id);
     truck.registration_status = 'DISABLED';
     truck.disabled_by = actorName;
     truck.disable_reason = dto.reason;
     truck.disable_timestamp = new Date();
     truck.truck_status = null;
     const saved = await this.truckRepository.save(truck);
-    return mapTruckResponse(saved);
+    return mapTruckResponse(await this.requireTruck(saved.id));
   }
 
   async archiveTruck(id: string) {
-    const truck = await requireEntity(
-      this.truckRepository,
-      id,
-      'Truck not found',
-    );
+    const truck = await this.requireTruck(id);
     truck.registration_status = 'ARCHIVED';
     const saved = await this.truckRepository.save(truck);
-    return mapTruckResponse(saved);
+    return mapTruckResponse(await this.requireTruck(saved.id));
   }
 
   async requestVerification(id: string) {
-    const truck = await requireEntity(
-      this.truckRepository,
-      id,
-      'Truck not found',
-    );
+    const truck = await this.requireTruck(id);
     if (truck.registration_status !== 'UNVERIFIED') {
       throw new BadRequestException(
         'Only unverified trucks can request MSS verification',
@@ -236,15 +257,11 @@ export class TrucksService {
     }
     truck.registration_status = 'VERIFICATION_REQUESTED';
     const saved = await this.truckRepository.save(truck);
-    return mapTruckResponse(saved);
+    return mapTruckResponse(await this.requireTruck(saved.id));
   }
 
   async overridePenalty(id: string, dto: ReasonDto, actorName: string) {
-    const truck = await requireEntity(
-      this.truckRepository,
-      id,
-      'Truck not found',
-    );
+    const truck = await this.requireTruck(id);
     const penalty = await this.activePenaltyForTruck(id);
     if (!penalty) {
       throw new BadRequestException('No active penalty found for this truck');
@@ -255,15 +272,11 @@ export class TrucksService {
     await this.penaltyRepository.save(penalty);
     truck.registration_status = 'MSS_VERIFIED';
     const saved = await this.truckRepository.save(truck);
-    return mapTruckResponse(saved, penalty);
+    return mapTruckResponse(await this.requireTruck(saved.id), penalty);
   }
 
   async reEnableTruck(id: string, dto: ReasonDto) {
-    const truck = await requireEntity(
-      this.truckRepository,
-      id,
-      'Truck not found',
-    );
+    const truck = await this.requireTruck(id);
     if (truck.registration_status !== 'DISABLED') {
       throw new BadRequestException('Only disabled trucks can be re-enabled');
     }
@@ -275,7 +288,7 @@ export class TrucksService {
     truck.disable_timestamp = null;
     truck.truck_status = 'AVAILABLE';
     const saved = await this.truckRepository.save(truck);
-    return mapTruckResponse(saved);
+    return mapTruckResponse(await this.requireTruck(saved.id));
   }
 
   async exportCsv(query: QueryTrucksDto): Promise<string> {
@@ -283,6 +296,8 @@ export class TrucksService {
     const headers = [
       'Plate Number',
       'Truck Type',
+      'Truck Length',
+      'Truck Capacity',
       'Registration Status',
       'Truck Status',
       'Visibility',
@@ -293,7 +308,9 @@ export class TrucksService {
     ];
     const rows = data.map((t: any) => [
       t.plate_number,
-      t.truck_type,
+      t.truck_type?.name ?? '',
+      t.truck_length?.length_value ?? '',
+      t.truck_capacity?.capacity_value ?? '',
       t.registration_status,
       t.truck_status ?? '',
       t.visibility,
@@ -303,6 +320,51 @@ export class TrucksService {
       t.created_at,
     ]);
     return toCsv([headers, ...rows]);
+  }
+
+  private async assertLengthBelongsToType(
+    lengthId: string | undefined,
+    truckTypeId: string,
+  ) {
+    if (!lengthId) return;
+    const length = await requireEntity(
+      this.truckLengthRepository,
+      lengthId,
+      'Truck length not found',
+    );
+    if (length.truck_type_id !== truckTypeId) {
+      throw new BadRequestException(
+        'Truck length does not belong to the selected truck type',
+      );
+    }
+  }
+
+  private async assertCapacityBelongsToType(
+    capacityId: string | undefined,
+    truckTypeId: string,
+  ) {
+    if (!capacityId) return;
+    const capacity = await requireEntity(
+      this.truckCapacityRepository,
+      capacityId,
+      'Truck capacity not found',
+    );
+    if (capacity.truck_type_id !== truckTypeId) {
+      throw new BadRequestException(
+        'Truck capacity does not belong to the selected truck type',
+      );
+    }
+  }
+
+  private async requireTruck(id: string) {
+    const truck = await this.truckRepository.findOne({
+      where: { id },
+      relations: ['truck_type', 'truck_length', 'truck_capacity'],
+    });
+    if (!truck) {
+      throw new NotFoundException('Truck not found');
+    }
+    return truck;
   }
 
   private async activePenaltyForTruck(truckId: string) {

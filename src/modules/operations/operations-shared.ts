@@ -146,13 +146,28 @@ export function mapTruckResponse(truck: Truck, penalty?: TruckPenalty | null) {
   const base: Record<string, unknown> = {
     id: truck.id,
     plate_number: truck.plate_number,
-    truck_type: truck.truck_type,
+    truck_type_id: truck.truck_type_id,
+    truck_type: truck.truck_type
+      ? { id: truck.truck_type.id, name: truck.truck_type.name }
+      : null,
     color: truck.color ?? '',
     chassis_number: truck.chassis_number ?? '',
     brand: truck.brand ?? '',
     model: truck.model ?? '',
-    truck_length: truck.truck_length ?? '',
-    truck_capacity: truck.truck_capacity ?? '',
+    truck_length_id: truck.truck_length_id ?? null,
+    truck_length: truck.truck_length
+      ? {
+          id: truck.truck_length.id,
+          length_value: truck.truck_length.length_value,
+        }
+      : null,
+    truck_capacity_id: truck.truck_capacity_id ?? null,
+    truck_capacity: truck.truck_capacity
+      ? {
+          id: truck.truck_capacity.id,
+          capacity_value: truck.truck_capacity.capacity_value,
+        }
+      : null,
     created_at: truck.created_at,
     registration_status: truck.registration_status,
     registered_by: {

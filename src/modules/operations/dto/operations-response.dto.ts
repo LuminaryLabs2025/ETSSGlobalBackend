@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   DISPUTE_STATUSES,
   DRIVER_OPERATIONAL_STATUSES,
@@ -15,7 +15,6 @@ import {
   TEP_STATUSES,
   TRUCK_REGISTRATION_STATUSES,
   TRUCK_STATUSES,
-  TRUCK_TYPES,
   VISIBILITIES,
 } from './operations.dto';
 
@@ -91,8 +90,17 @@ export class TruckDto {
   @ApiProperty({ example: 'AAA-423-WA' })
   plate_number: string;
 
-  @ApiProperty({ enum: TRUCK_TYPES })
-  truck_type: string;
+  @ApiProperty({ format: 'uuid' })
+  truck_type_id: string;
+
+  @ApiProperty({
+    type: 'object',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      name: { type: 'string', example: 'Flatbed' },
+    },
+  })
+  truck_type: { id: string; name: string };
 
   @ApiProperty({ example: 'White' })
   color: string;
@@ -106,11 +114,29 @@ export class TruckDto {
   @ApiProperty({ example: 'Actros 2548' })
   model: string;
 
-  @ApiProperty({ example: '12.2m' })
-  truck_length: string;
+  @ApiPropertyOptional({ format: 'uuid' })
+  truck_length_id?: string | null;
 
-  @ApiProperty({ example: '40 Tons' })
-  truck_capacity: string;
+  @ApiPropertyOptional({
+    type: 'object',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      length_value: { type: 'string', example: '12.2m' },
+    },
+  })
+  truck_length?: { id: string; length_value: string } | null;
+
+  @ApiPropertyOptional({ format: 'uuid' })
+  truck_capacity_id?: string | null;
+
+  @ApiPropertyOptional({
+    type: 'object',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      capacity_value: { type: 'string', example: '40 Tons' },
+    },
+  })
+  truck_capacity?: { id: string; capacity_value: string } | null;
 
   @ApiProperty()
   created_at: Date;

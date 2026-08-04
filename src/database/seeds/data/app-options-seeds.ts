@@ -6,6 +6,10 @@ export const APP_OPTIONS_SEEDS = {
     { name: 'Arewa', description: 'Arewa truck', status: 'ACTIVE' },
     { name: 'Fish-Van', description: 'Fish-Van truck', status: 'ACTIVE' },
     { name: 'Special Truck', description: 'Special purpose truck', status: 'ACTIVE' },
+    { name: '20-Footer', description: '20-footer container truck', status: 'ACTIVE' },
+    { name: '40-Footer', description: '40-footer container truck', status: 'ACTIVE' },
+    { name: 'Tanker', description: 'Tanker truck', status: 'ACTIVE' },
+    { name: 'Curtainsider', description: 'Curtainsider truck', status: 'ACTIVE' },
   ],
   booking_categories: [
     { name: 'Import Container', status: 'ACTIVE' },

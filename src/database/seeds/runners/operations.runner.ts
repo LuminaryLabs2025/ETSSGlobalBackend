@@ -1,6 +1,11 @@
 import { DataSource } from 'typeorm';
 import { Company } from '../../entities/company.entity';
 import {
+  TruckCapacity,
+  TruckLength,
+  TruckType,
+} from '../../entities/app-options.entities';
+import {
   Driver,
   DriverFlag,
   Tep,
@@ -31,6 +36,27 @@ export async function runOperationsSeed(dataSource: DataSource): Promise<void> {
     companyMap.set(c.name, company);
   }
 
+  const truckTypeRepo = dataSource.getRepository(TruckType);
+  const truckLengthRepo = dataSource.getRepository(TruckLength);
+  const truckCapacityRepo = dataSource.getRepository(TruckCapacity);
+  const truckTypeMap = new Map<string, TruckType>();
+  for (const seed of TRUCK_SEEDS) {
+    if (truckTypeMap.has(seed.truck_type_name)) continue;
+    let truckType = await truckTypeRepo.findOne({
+      where: { name: seed.truck_type_name },
+    });
+    if (!truckType) {
+      truckType = await truckTypeRepo.save(
+        truckTypeRepo.create({
+          name: seed.truck_type_name,
+          description: `${seed.truck_type_name} truck`,
+          status: 'ACTIVE',
+        }),
+      );
+    }
+    truckTypeMap.set(seed.truck_type_name, truckType);
+  }
+
   const truckRepo = dataSource.getRepository(Truck);
   const penaltyRepo = dataSource.getRepository(TruckPenalty);
 
@@ -40,15 +66,57 @@ export async function runOperationsSeed(dataSource: DataSource): Promise<void> {
     });
     if (!truck) {
       const company = companyMap.get(seed.company);
+      const truckType = truckTypeMap.get(seed.truck_type_name)!;
+
+      let truckLengthId: string | null = null;
+      if (seed.truck_length_value) {
+        let length = await truckLengthRepo.findOne({
+          where: {
+            truck_type_id: truckType.id,
+            length_value: seed.truck_length_value,
+          },
+        });
+        if (!length) {
+          length = await truckLengthRepo.save(
+            truckLengthRepo.create({
+              truck_type_id: truckType.id,
+              length_value: seed.truck_length_value,
+              status: 'ACTIVE',
+            }),
+          );
+        }
+        truckLengthId = length.id;
+      }
+
+      let truckCapacityId: string | null = null;
+      if (seed.truck_capacity_value) {
+        let capacity = await truckCapacityRepo.findOne({
+          where: {
+            truck_type_id: truckType.id,
+            capacity_value: seed.truck_capacity_value,
+          },
+        });
+        if (!capacity) {
+          capacity = await truckCapacityRepo.save(
+            truckCapacityRepo.create({
+              truck_type_id: truckType.id,
+              capacity_value: seed.truck_capacity_value,
+              status: 'ACTIVE',
+            }),
+          );
+        }
+        truckCapacityId = capacity.id;
+      }
+
       truck = truckRepo.create({
         plate_number: seed.plate_number,
-        truck_type: seed.truck_type,
+        truck_type_id: truckType.id,
         color: seed.color ?? null,
         chassis_number: seed.chassis_number ?? null,
         brand: seed.brand ?? null,
         model: seed.model ?? null,
-        truck_length: seed.truck_length ?? null,
-        truck_capacity: seed.truck_capacity ?? null,
+        truck_length_id: truckLengthId,
+        truck_capacity_id: truckCapacityId,
         registration_status: seed.registration_status,
         truck_status: seed.truck_status ?? null,
         visibility: seed.visibility,

@@ -30,6 +30,7 @@ import {
   TepType,
   TepTypeBookingCategory,
   TepTypeTruckType,
+  TruckTypeBookingCategory,
   TerminalGate,
   TruckCapacity,
   TruckLength,
@@ -88,6 +89,8 @@ export class AppOptionsService {
     private readonly tepTypeBookingCategoryRepository: Repository<TepTypeBookingCategory>,
     @InjectRepository(TepTypeTruckType)
     private readonly tepTypeTruckTypeRepository: Repository<TepTypeTruckType>,
+    @InjectRepository(TruckTypeBookingCategory)
+    private readonly truckTypeBookingCategoryRepository: Repository<TruckTypeBookingCategory>,
     @InjectRepository(ParkType)
     private readonly parkTypeRepository: Repository<ParkType>,
     @InjectRepository(FacilityType)
@@ -118,32 +121,87 @@ export class AppOptionsService {
 
   // Trucks
   async createTruckType(dto: CreateTruckTypeDto) {
-    return this.createEntity(
-      this.truckTypeRepository,
-      dto,
-      'Truck type already exists',
+    await this.ensureIdsExist(
+      this.bookingCategoryRepository,
+      dto.linked_booking_categories,
+      'One or more booking categories were not found',
     );
+
+    return this.dataSource.transaction(async (manager) => {
+      const created = await manager.save(TruckType, {
+        name: dto.name,
+        description: dto.description ?? null,
+        status: dto.status ?? 'ACTIVE',
+      });
+
+      await manager.save(
+        TruckTypeBookingCategory,
+        dto.linked_booking_categories.map((bookingCategoryId) => ({
+          truck_type_id: created.id,
+          booking_category_id: bookingCategoryId,
+        })),
+      );
+
+      return this.findTruckTypeWithRelations(manager, created.id);
+    });
   }
 
   async findTruckTypes(query: QueryAppOptionsDto) {
     const qb = this.truckTypeRepository.createQueryBuilder('row');
     this.applyCommonFilters(qb, query, ['row.name', 'row.description']);
     qb.orderBy('row.name', 'ASC');
-    return this.paginateQueryBuilder(qb, query);
+    const { data, meta } = await this.paginateQueryBuilder(qb, query);
+    const detailed = await Promise.all(
+      data.map((row: TruckType) =>
+        this.findTruckTypeWithRelations(this.dataSource.manager, row.id),
+      ),
+    );
+    return { data: detailed, meta };
   }
 
   async findTruckType(id: string) {
-    return this.requireEntity(this.truckTypeRepository, id, 'Truck type not found');
+    const truckType = await this.findTruckTypeWithRelations(
+      this.dataSource.manager,
+      id,
+    );
+    if (!truckType) throw new NotFoundException('Truck type not found');
+    return truckType;
   }
 
   async updateTruckType(id: string, dto: UpdateTruckTypeDto) {
-    return this.updateEntity(
-      this.truckTypeRepository,
-      id,
-      dto,
-      'Truck type not found',
-      'Truck type already exists',
-    );
+    await this.requireEntity(this.truckTypeRepository, id, 'Truck type not found');
+    if (dto.linked_booking_categories) {
+      await this.ensureIdsExist(
+        this.bookingCategoryRepository,
+        dto.linked_booking_categories,
+        'One or more booking categories were not found',
+      );
+    }
+
+    return this.dataSource.transaction(async (manager) => {
+      await manager.update(
+        TruckType,
+        { id },
+        this.cleanUndefined({
+          name: dto.name,
+          description: dto.description,
+          status: dto.status,
+        }),
+      );
+
+      if (dto.linked_booking_categories) {
+        await manager.delete(TruckTypeBookingCategory, { truck_type_id: id });
+        await manager.save(
+          TruckTypeBookingCategory,
+          dto.linked_booking_categories.map((bookingCategoryId) => ({
+            truck_type_id: id,
+            booking_category_id: bookingCategoryId,
+          })),
+        );
+      }
+
+      return this.findTruckTypeWithRelations(manager, id);
+    });
   }
 
   async deleteTruckType(id: string) {
@@ -374,7 +432,14 @@ export class AppOptionsService {
     }
 
     return this.dataSource.transaction(async (manager) => {
-      await manager.update(TepType, { id }, this.cleanUndefined(dto));
+      await manager.update(
+        TepType,
+        { id },
+        this.cleanUndefined({
+          name: dto.name,
+          status: dto.status,
+        }),
+      );
 
       if (dto.booking_category_ids) {
         await manager.delete(TepTypeBookingCategory, { tep_type_id: id });
@@ -487,7 +552,14 @@ export class AppOptionsService {
       );
     }
     return this.dataSource.transaction(async (manager) => {
-      await manager.update(FacilityType, { id }, this.cleanUndefined(dto));
+      await manager.update(
+        FacilityType,
+        { id },
+        this.cleanUndefined({
+          name: dto.name,
+          status: dto.status,
+        }),
+      );
       if (dto.park_type_ids) {
         await manager.delete(FacilityTypeParkType, { facility_type_id: id });
         await manager.save(
@@ -988,6 +1060,26 @@ export class AppOptionsService {
         limit,
         total_pages: Math.ceil(total / limit),
       },
+    };
+  }
+
+  private async findTruckTypeWithRelations(
+    manager: DataSource['manager'],
+    id: string,
+  ) {
+    const truckType = await manager.findOne(TruckType, { where: { id } });
+    if (!truckType) return null;
+
+    const bookingLinks = await manager.find(TruckTypeBookingCategory, {
+      where: { truck_type_id: id },
+      relations: ['booking_category'],
+    });
+
+    return {
+      ...truckType,
+      linked_booking_categories: bookingLinks.map(
+        (link) => link.booking_category,
+      ),
     };
   }
 

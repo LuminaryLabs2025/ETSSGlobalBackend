@@ -35,6 +35,12 @@ export class TruckType {
 
   @OneToMany(() => TruckLength, (length) => length.truck_type)
   lengths: TruckLength[];
+
+  @OneToMany(
+    () => TruckTypeBookingCategory,
+    (link) => link.truck_type,
+  )
+  booking_category_links: TruckTypeBookingCategory[];
 }
 
 @Entity('truck_capacities')
@@ -150,6 +156,32 @@ export class TepTypeTruckType {
   @ManyToOne(() => TruckType, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'truck_type_id' })
   truck_type: TruckType;
+}
+
+@Entity('truck_type_booking_categories')
+@Unique('UQ_truck_type_booking_categories_unique', [
+  'truck_type_id',
+  'booking_category_id',
+])
+export class TruckTypeBookingCategory {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Column()
+  truck_type_id: string;
+
+  @Column()
+  booking_category_id: string;
+
+  @ManyToOne(() => TruckType, (truckType) => truckType.booking_category_links, {
+    onDelete: 'CASCADE',
+  })
+  @JoinColumn({ name: 'truck_type_id' })
+  truck_type: TruckType;
+
+  @ManyToOne(() => BookingCategory, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'booking_category_id' })
+  booking_category: BookingCategory;
 }
 
 @Entity('park_types')

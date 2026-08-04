@@ -53,6 +53,11 @@ export class CreateTruckTypeDto {
   @IsOptional()
   @IsString()
   status?: string;
+
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsUUID('4', { each: true })
+  linked_booking_categories: string[];
 }
 
 export class UpdateTruckTypeDto {
@@ -68,6 +73,12 @@ export class UpdateTruckTypeDto {
   @IsOptional()
   @IsString()
   status?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsUUID('4', { each: true })
+  linked_booking_categories?: string[];
 }
 
 export class CreateTruckCapacityDto {

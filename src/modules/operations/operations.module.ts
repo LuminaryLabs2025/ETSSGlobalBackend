@@ -8,7 +8,10 @@ import {
   TepActivityEvent,
   TepMatchedTruck,
   Truck,
+  TruckCapacity,
+  TruckLength,
   TruckPenalty,
+  TruckType,
   User,
 } from '../../database/entities';
 import { TrucksController } from './trucks.controller';
@@ -22,6 +25,9 @@ import { TepsService } from './teps.service';
   imports: [
     TypeOrmModule.forFeature([
       Truck,
+      TruckType,
+      TruckLength,
+      TruckCapacity,
       TruckPenalty,
       Driver,
       DriverFlag,

@@ -10,6 +10,11 @@ import {
   Unique,
   UpdateDateColumn,
 } from 'typeorm';
+import {
+  TruckCapacity,
+  TruckLength,
+  TruckType,
+} from './app-options.entities';
 import { Company } from './company.entity';
 import { User } from './user.entity';
 
@@ -36,8 +41,12 @@ export class Truck {
   @Column()
   plate_number: string;
 
-  @Column()
-  truck_type: string;
+  @Column({ type: 'uuid' })
+  truck_type_id: string;
+
+  @ManyToOne(() => TruckType, { onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'truck_type_id' })
+  truck_type: TruckType;
 
   @Column({ type: 'varchar', nullable: true })
   color: string | null;
@@ -51,11 +60,19 @@ export class Truck {
   @Column({ type: 'varchar', nullable: true })
   model: string | null;
 
-  @Column({ type: 'varchar', nullable: true })
-  truck_length: string | null;
+  @Column({ type: 'uuid', nullable: true })
+  truck_length_id: string | null;
 
-  @Column({ type: 'varchar', nullable: true })
-  truck_capacity: string | null;
+  @ManyToOne(() => TruckLength, { onDelete: 'SET NULL', nullable: true })
+  @JoinColumn({ name: 'truck_length_id' })
+  truck_length: TruckLength | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  truck_capacity_id: string | null;
+
+  @ManyToOne(() => TruckCapacity, { onDelete: 'SET NULL', nullable: true })
+  @JoinColumn({ name: 'truck_capacity_id' })
+  truck_capacity: TruckCapacity | null;
 
   @Column({ default: 'UNVERIFIED' })
   registration_status: string;

@@ -43,15 +43,6 @@ export class QueryOperationsDto {
   visibility?: string;
 }
 
-export const TRUCK_TYPES = [
-  '20-FOOTER',
-  '40-FOOTER',
-  'FLATBED',
-  'LOW_LOADER',
-  'TANKER',
-  'CURTAINSIDER',
-] as const;
-
 export const TRUCK_REGISTRATION_STATUSES = [
   'MSS_VERIFIED',
   'UNVERIFIED',
@@ -166,8 +157,8 @@ export class QueryTrucksDto extends QueryOperationsDto {
   truck_status?: string;
 
   @IsOptional()
-  @IsString()
-  truck_type?: string;
+  @IsUUID()
+  truck_type_id?: string;
 
   @IsOptional()
   @IsString()
@@ -236,9 +227,8 @@ export class CreateTruckDto {
   @IsNotEmpty()
   plate_number: string;
 
-  @IsString()
-  @IsIn(TRUCK_TYPES)
-  truck_type: string;
+  @IsUUID()
+  truck_type_id: string;
 
   @IsOptional()
   @IsString()
@@ -257,12 +247,12 @@ export class CreateTruckDto {
   model?: string;
 
   @IsOptional()
-  @IsString()
-  truck_length?: string;
+  @IsUUID()
+  truck_length_id?: string;
 
   @IsOptional()
-  @IsString()
-  truck_capacity?: string;
+  @IsUUID()
+  truck_capacity_id?: string;
 
   @IsUUID()
   transporter_company_id: string;
@@ -289,9 +279,8 @@ export class CreateTruckItemDto {
   @IsNotEmpty()
   plate_number: string;
 
-  @IsString()
-  @IsIn(TRUCK_TYPES)
-  truck_type: string;
+  @IsUUID()
+  truck_type_id: string;
 
   @IsOptional()
   @IsString()
@@ -310,12 +299,12 @@ export class CreateTruckItemDto {
   model?: string;
 
   @IsOptional()
-  @IsString()
-  truck_length?: string;
+  @IsUUID()
+  truck_length_id?: string;
 
   @IsOptional()
-  @IsString()
-  truck_capacity?: string;
+  @IsUUID()
+  truck_capacity_id?: string;
 
   @IsOptional()
   @IsString()

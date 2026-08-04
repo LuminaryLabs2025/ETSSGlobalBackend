@@ -15,6 +15,7 @@ export {
   TepType,
   TepTypeBookingCategory,
   TepTypeTruckType,
+  TruckTypeBookingCategory,
   ParkType,
   FacilityType,
   FacilityTypeParkType,
