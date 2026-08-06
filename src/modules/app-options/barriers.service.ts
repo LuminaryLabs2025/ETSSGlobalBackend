@@ -308,6 +308,21 @@ export class BarriersService {
     await this.requireBarrier(barrierId);
     await this.assertSiteExists(dto.site_type, dto.site_id);
 
+    const oppositeRole = dto.barrier_role === 'ENTRY' ? 'EXIT' : 'ENTRY';
+    const conflicting = await this.linkRepository.findOne({
+      where: {
+        barrier_id: barrierId,
+        site_type: dto.site_type,
+        site_id: dto.site_id,
+        barrier_role: oppositeRole,
+      },
+    });
+    if (conflicting) {
+      throw new BadRequestException(
+        `A barrier cannot be both ENTRY and EXIT for the same ${dto.site_type.toLowerCase().replace(/_/g, ' ')}. It may still be used as ${oppositeRole} at a different site.`,
+      );
+    }
+
     const link = this.linkRepository.create({
       barrier_id: barrierId,
       site_type: dto.site_type,
@@ -357,6 +372,15 @@ export class BarriersService {
         );
       }
     }
+
+    // Same barrier cannot be ENTRY and EXIT on this site; it may still be EXIT
+    // (or ENTRY) on a different facility / park / terminal.
+    await this.assertNoSameSiteEntryExitOverlap(
+      siteType,
+      siteId,
+      dto.entry_barrier_ids !== undefined ? entryIds : undefined,
+      dto.exit_barrier_ids !== undefined ? exitIds : undefined,
+    );
 
     await this.dataSource.transaction(async (manager) => {
       if (dto.entry_barrier_ids) {
@@ -548,6 +572,45 @@ export class BarriersService {
       qb.andWhere(
         `link.site_id IN (SELECT f.id FROM facilities f WHERE f.park_type = :parkType AND f.archived_at IS NULL)`,
         { parkType: query.park_type },
+      );
+    }
+  }
+
+  /**
+   * A barrier may be ENTRY at site A and EXIT at site B, but never ENTRY and EXIT
+   * on the same site. When only one side of the assignment is sent, compare against
+   * the other role's existing links for that site.
+   */
+  private async assertNoSameSiteEntryExitOverlap(
+    siteType: 'FACILITY' | 'TRANSIT_PARK' | 'TERMINAL',
+    siteId: string,
+    entryIds: string[] | undefined,
+    exitIds: string[] | undefined,
+  ) {
+    let resolvedEntry = entryIds;
+    let resolvedExit = exitIds;
+
+    if (resolvedEntry === undefined || resolvedExit === undefined) {
+      const existing = await this.linkRepository.find({
+        where: { site_type: siteType, site_id: siteId },
+        select: ['barrier_id', 'barrier_role'],
+      });
+      if (resolvedEntry === undefined) {
+        resolvedEntry = existing
+          .filter((l) => l.barrier_role === 'ENTRY')
+          .map((l) => l.barrier_id);
+      }
+      if (resolvedExit === undefined) {
+        resolvedExit = existing
+          .filter((l) => l.barrier_role === 'EXIT')
+          .map((l) => l.barrier_id);
+      }
+    }
+
+    const overlap = resolvedEntry.filter((id) => resolvedExit!.includes(id));
+    if (overlap.length) {
+      throw new BadRequestException(
+        'A barrier cannot be both an entry and exit gate for the same site. Choose different barriers for entry and exit; the same barrier may still be used as exit (or entry) on another facility, transit park, or terminal.',
       );
     }
   }

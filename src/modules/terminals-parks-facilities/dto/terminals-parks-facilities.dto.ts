@@ -121,7 +121,8 @@ export class CreateTerminalDto {
   @ApiPropertyOptional({
     type: [String],
     format: 'uuid',
-    description: 'Barrier catalog UUIDs to assign as ENTRY gates',
+    description:
+      'Barrier catalog UUIDs to assign as ENTRY gates. Must not overlap exit_barrier_ids for this same site.',
   })
   @IsOptional()
   @IsArray()
@@ -131,7 +132,8 @@ export class CreateTerminalDto {
   @ApiPropertyOptional({
     type: [String],
     format: 'uuid',
-    description: 'Barrier catalog UUIDs to assign as EXIT gates',
+    description:
+      'Barrier catalog UUIDs to assign as EXIT gates. Must not overlap entry_barrier_ids for this same site.',
   })
   @IsOptional()
   @IsArray()
@@ -190,7 +192,8 @@ export class UpdateTerminalDto {
   @ApiPropertyOptional({
     type: [String],
     format: 'uuid',
-    description: 'Barrier catalog UUIDs to assign as ENTRY gates',
+    description:
+      'Barrier catalog UUIDs to assign as ENTRY gates. Must not overlap exit_barrier_ids for this same site.',
   })
   @IsOptional()
   @IsArray()
@@ -200,7 +203,8 @@ export class UpdateTerminalDto {
   @ApiPropertyOptional({
     type: [String],
     format: 'uuid',
-    description: 'Barrier catalog UUIDs to assign as EXIT gates',
+    description:
+      'Barrier catalog UUIDs to assign as EXIT gates. Must not overlap entry_barrier_ids for this same site.',
   })
   @IsOptional()
   @IsArray()
@@ -256,7 +260,8 @@ export class CreateTransitParkDto {
   @ApiPropertyOptional({
     type: [String],
     format: 'uuid',
-    description: 'Barrier catalog UUIDs to assign as ENTRY gates',
+    description:
+      'Barrier catalog UUIDs to assign as ENTRY gates. Must not overlap exit_barrier_ids for this same site.',
   })
   @IsOptional()
   @IsArray()
@@ -266,7 +271,8 @@ export class CreateTransitParkDto {
   @ApiPropertyOptional({
     type: [String],
     format: 'uuid',
-    description: 'Barrier catalog UUIDs to assign as EXIT gates',
+    description:
+      'Barrier catalog UUIDs to assign as EXIT gates. Must not overlap entry_barrier_ids for this same site.',
   })
   @IsOptional()
   @IsArray()
@@ -320,7 +326,8 @@ export class UpdateTransitParkDto {
   @ApiPropertyOptional({
     type: [String],
     format: 'uuid',
-    description: 'Barrier catalog UUIDs to assign as ENTRY gates',
+    description:
+      'Barrier catalog UUIDs to assign as ENTRY gates. Must not overlap exit_barrier_ids for this same site.',
   })
   @IsOptional()
   @IsArray()
@@ -330,7 +337,8 @@ export class UpdateTransitParkDto {
   @ApiPropertyOptional({
     type: [String],
     format: 'uuid',
-    description: 'Barrier catalog UUIDs to assign as EXIT gates',
+    description:
+      'Barrier catalog UUIDs to assign as EXIT gates. Must not overlap entry_barrier_ids for this same site.',
   })
   @IsOptional()
   @IsArray()
@@ -390,7 +398,8 @@ export class CreateFacilityDto {
   @ApiPropertyOptional({
     type: [String],
     format: 'uuid',
-    description: 'Barrier catalog UUIDs to assign as ENTRY gates',
+    description:
+      'Barrier catalog UUIDs to assign as ENTRY gates. Must not overlap exit_barrier_ids for this same site.',
   })
   @IsOptional()
   @IsArray()
@@ -400,7 +409,8 @@ export class CreateFacilityDto {
   @ApiPropertyOptional({
     type: [String],
     format: 'uuid',
-    description: 'Barrier catalog UUIDs to assign as EXIT gates',
+    description:
+      'Barrier catalog UUIDs to assign as EXIT gates. Must not overlap entry_barrier_ids for this same site.',
   })
   @IsOptional()
   @IsArray()
@@ -465,7 +475,8 @@ export class UpdateFacilityDto {
   @ApiPropertyOptional({
     type: [String],
     format: 'uuid',
-    description: 'Barrier catalog UUIDs to assign as ENTRY gates',
+    description:
+      'Barrier catalog UUIDs to assign as ENTRY gates. Must not overlap exit_barrier_ids for this same site.',
   })
   @IsOptional()
   @IsArray()
@@ -475,7 +486,8 @@ export class UpdateFacilityDto {
   @ApiPropertyOptional({
     type: [String],
     format: 'uuid',
-    description: 'Barrier catalog UUIDs to assign as EXIT gates',
+    description:
+      'Barrier catalog UUIDs to assign as EXIT gates. Must not overlap entry_barrier_ids for this same site.',
   })
   @IsOptional()
   @IsArray()

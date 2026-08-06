@@ -13,6 +13,7 @@ Hand this document to the frontend team as the source of truth for the reworked 
 - Barriers are now a **first-class catalog** (`barriers` table), not paired entry/exit strings on `terminal_gates`.
 - A barrier can be linked to **multiple sites** (Facility, Transit Park, or Terminal) as **ENTRY** and/or **EXIT** via `barrier_site_links`.
 - The same physical barrier can be ENTRY for one site and EXIT for another.
+- **Restriction:** the same barrier cannot be both ENTRY and EXIT for the *same* site (e.g. one facility). The API returns `400` if the sets overlap.
 - Facility / Transit Park / Terminal create & update accept `entry_barrier_ids[]` and `exit_barrier_ids[]`.
 - Both list and detail endpoints for those sites now return `entry_barriers` and `exit_barriers`.
 - Handheld devices preferably link to `barrier_id` (prototype “Linked Handheld”).

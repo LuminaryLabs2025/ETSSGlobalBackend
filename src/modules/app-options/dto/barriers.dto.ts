@@ -170,7 +170,8 @@ export class AssignSiteBarriersDto {
     type: [String],
     format: 'uuid',
     description:
-      'Replace ENTRY barriers for the site. Omit to leave entry links unchanged; pass [] to clear.',
+      'Replace ENTRY barriers for the site. Omit to leave entry links unchanged; pass [] to clear. ' +
+      'A barrier cannot also be listed in exit_barrier_ids for this same site (it may still be EXIT on another site).',
     example: ['a1b2c3d4-e5f6-7890-abcd-ef1234567890'],
   })
   @IsOptional()
@@ -182,7 +183,8 @@ export class AssignSiteBarriersDto {
     type: [String],
     format: 'uuid',
     description:
-      'Replace EXIT barriers for the site. Omit to leave exit links unchanged; pass [] to clear.',
+      'Replace EXIT barriers for the site. Omit to leave exit links unchanged; pass [] to clear. ' +
+      'A barrier cannot also be listed in entry_barrier_ids for this same site (it may still be ENTRY on another site).',
     example: ['b2c3d4e5-f6a7-8901-bcde-f12345678901'],
   })
   @IsOptional()
