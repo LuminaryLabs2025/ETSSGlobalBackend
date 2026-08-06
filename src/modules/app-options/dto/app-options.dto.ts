@@ -13,6 +13,7 @@ import {
   Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class QueryAppOptionsDto {
   @IsOptional()
@@ -42,18 +43,27 @@ export class QueryAppOptionsDto {
 }
 
 export class CreateTruckTypeDto {
+  @ApiProperty({ example: '40-Footer' })
   @IsString()
   @IsNotEmpty()
   name: string;
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   description?: string;
 
+  @ApiPropertyOptional({ example: 'ACTIVE' })
   @IsOptional()
   @IsString()
   status?: string;
 
+  @ApiProperty({
+    type: [String],
+    format: 'uuid',
+    description: 'Booking category UUIDs to link to this truck type',
+    example: ['a1b2c3d4-e5f6-7890-abcd-ef1234567890'],
+  })
   @IsArray()
   @ArrayNotEmpty()
   @IsUUID('4', { each: true })
@@ -61,19 +71,28 @@ export class CreateTruckTypeDto {
 }
 
 export class UpdateTruckTypeDto {
+  @ApiPropertyOptional({ example: '40-Footer' })
   @IsOptional()
   @IsString()
   @IsNotEmpty()
   name?: string;
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   description?: string;
 
+  @ApiPropertyOptional({ example: 'ACTIVE' })
   @IsOptional()
   @IsString()
   status?: string;
 
+  @ApiPropertyOptional({
+    type: [String],
+    format: 'uuid',
+    description:
+      'Replace linked booking categories. Omit to leave links unchanged.',
+  })
   @IsOptional()
   @IsArray()
   @ArrayNotEmpty()
@@ -159,19 +178,31 @@ export class UpdateBookingCategoryDto {
 }
 
 export class CreateTepTypeDto {
+  @ApiProperty({ example: 'Export TEP' })
   @IsString()
   @IsNotEmpty()
   name: string;
 
+  @ApiPropertyOptional({ example: 'ACTIVE' })
   @IsOptional()
   @IsString()
   status?: string;
 
+  @ApiProperty({
+    type: [String],
+    format: 'uuid',
+    description: 'Booking category UUIDs linked to this TEP type',
+  })
   @IsArray()
   @ArrayNotEmpty()
   @IsUUID('4', { each: true })
   booking_category_ids: string[];
 
+  @ApiProperty({
+    type: [String],
+    format: 'uuid',
+    description: 'Truck type UUIDs linked to this TEP type',
+  })
   @IsArray()
   @ArrayNotEmpty()
   @IsUUID('4', { each: true })
@@ -179,21 +210,34 @@ export class CreateTepTypeDto {
 }
 
 export class UpdateTepTypeDto {
+  @ApiPropertyOptional({ example: 'Export TEP' })
   @IsOptional()
   @IsString()
   @IsNotEmpty()
   name?: string;
 
+  @ApiPropertyOptional({ example: 'ACTIVE' })
   @IsOptional()
   @IsString()
   status?: string;
 
+  @ApiPropertyOptional({
+    type: [String],
+    format: 'uuid',
+    description:
+      'Replace linked booking categories. Can be sent alone (without name).',
+  })
   @IsOptional()
   @IsArray()
   @ArrayNotEmpty()
   @IsUUID('4', { each: true })
   booking_category_ids?: string[];
 
+  @ApiPropertyOptional({
+    type: [String],
+    format: 'uuid',
+    description: 'Replace linked truck types. Can be sent alone (without name).',
+  })
   @IsOptional()
   @IsArray()
   @ArrayNotEmpty()

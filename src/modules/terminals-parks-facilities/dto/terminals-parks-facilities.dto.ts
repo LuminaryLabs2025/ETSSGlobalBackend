@@ -11,6 +11,7 @@ import {
   Min,
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export const TERMINAL_TYPES = ['PORT_TERMINAL', 'NON_PORT_TERMINAL'] as const;
 export const TRANSIT_PARK_TYPES = ['PREGATE', 'EPT'] as const;
@@ -117,11 +118,21 @@ export class CreateTerminalDto {
   @IsIn(BOOKING_STATUSES)
   booking_status?: string;
 
+  @ApiPropertyOptional({
+    type: [String],
+    format: 'uuid',
+    description: 'Barrier catalog UUIDs to assign as ENTRY gates',
+  })
   @IsOptional()
   @IsArray()
   @IsUUID('4', { each: true })
   entry_barrier_ids?: string[];
 
+  @ApiPropertyOptional({
+    type: [String],
+    format: 'uuid',
+    description: 'Barrier catalog UUIDs to assign as EXIT gates',
+  })
   @IsOptional()
   @IsArray()
   @IsUUID('4', { each: true })
@@ -176,11 +187,21 @@ export class UpdateTerminalDto {
   @IsIn(BOOKING_STATUSES)
   booking_status?: string;
 
+  @ApiPropertyOptional({
+    type: [String],
+    format: 'uuid',
+    description: 'Barrier catalog UUIDs to assign as ENTRY gates',
+  })
   @IsOptional()
   @IsArray()
   @IsUUID('4', { each: true })
   entry_barrier_ids?: string[];
 
+  @ApiPropertyOptional({
+    type: [String],
+    format: 'uuid',
+    description: 'Barrier catalog UUIDs to assign as EXIT gates',
+  })
   @IsOptional()
   @IsArray()
   @IsUUID('4', { each: true })
@@ -232,11 +253,21 @@ export class CreateTransitParkDto {
   @IsIn(STATUSES)
   status?: string;
 
+  @ApiPropertyOptional({
+    type: [String],
+    format: 'uuid',
+    description: 'Barrier catalog UUIDs to assign as ENTRY gates',
+  })
   @IsOptional()
   @IsArray()
   @IsUUID('4', { each: true })
   entry_barrier_ids?: string[];
 
+  @ApiPropertyOptional({
+    type: [String],
+    format: 'uuid',
+    description: 'Barrier catalog UUIDs to assign as EXIT gates',
+  })
   @IsOptional()
   @IsArray()
   @IsUUID('4', { each: true })
@@ -286,11 +317,21 @@ export class UpdateTransitParkDto {
   @IsIn(STATUSES)
   status?: string;
 
+  @ApiPropertyOptional({
+    type: [String],
+    format: 'uuid',
+    description: 'Barrier catalog UUIDs to assign as ENTRY gates',
+  })
   @IsOptional()
   @IsArray()
   @IsUUID('4', { each: true })
   entry_barrier_ids?: string[];
 
+  @ApiPropertyOptional({
+    type: [String],
+    format: 'uuid',
+    description: 'Barrier catalog UUIDs to assign as EXIT gates',
+  })
   @IsOptional()
   @IsArray()
   @IsUUID('4', { each: true })
@@ -346,11 +387,21 @@ export class CreateFacilityDto {
   @IsIn(STATUSES)
   status?: string;
 
+  @ApiPropertyOptional({
+    type: [String],
+    format: 'uuid',
+    description: 'Barrier catalog UUIDs to assign as ENTRY gates',
+  })
   @IsOptional()
   @IsArray()
   @IsUUID('4', { each: true })
   entry_barrier_ids?: string[];
 
+  @ApiPropertyOptional({
+    type: [String],
+    format: 'uuid',
+    description: 'Barrier catalog UUIDs to assign as EXIT gates',
+  })
   @IsOptional()
   @IsArray()
   @IsUUID('4', { each: true })
@@ -411,11 +462,21 @@ export class UpdateFacilityDto {
   @IsIn(STATUSES)
   status?: string;
 
+  @ApiPropertyOptional({
+    type: [String],
+    format: 'uuid',
+    description: 'Barrier catalog UUIDs to assign as ENTRY gates',
+  })
   @IsOptional()
   @IsArray()
   @IsUUID('4', { each: true })
   entry_barrier_ids?: string[];
 
+  @ApiPropertyOptional({
+    type: [String],
+    format: 'uuid',
+    description: 'Barrier catalog UUIDs to assign as EXIT gates',
+  })
   @IsOptional()
   @IsArray()
   @IsUUID('4', { each: true })

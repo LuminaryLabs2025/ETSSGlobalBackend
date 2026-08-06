@@ -32,12 +32,14 @@ export const FACILITY_PARK_TYPES_FOR_BARRIERS = [
 ] as const;
 
 export class QueryBarriersDto {
+  @ApiPropertyOptional({ example: 1, minimum: 1 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
   page?: number = 1;
 
+  @ApiPropertyOptional({ example: 20, minimum: 1, maximum: 100 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
@@ -45,32 +47,51 @@ export class QueryBarriersDto {
   @Max(100)
   limit?: number = 20;
 
+  @ApiPropertyOptional({
+    description: 'Search barrier ID number or service provider name',
+    example: 'BR-049',
+  })
   @IsOptional()
   @IsString()
   search?: string;
 
-  /** FACILITY | TRANSIT_PARK | TERMINAL — scopes list to site links */
+  @ApiPropertyOptional({
+    enum: BARRIER_SITE_TYPES,
+    description:
+      'When set (with optional site_id / park_type / barrier_role), returns one row per barrier↔site link',
+  })
   @IsOptional()
   @IsIn(BARRIER_SITE_TYPES)
   site_type?: string;
 
-  /** When site_type=FACILITY: BONDED_TERMINAL | TRUCK_PARK | FISH_VAN_PARK */
+  @ApiPropertyOptional({
+    enum: FACILITY_PARK_TYPES_FOR_BARRIERS,
+    description:
+      'When site_type is FACILITY (or omitted with this filter), scopes to facilities of that park type',
+  })
   @IsOptional()
   @IsIn(FACILITY_PARK_TYPES_FOR_BARRIERS)
   park_type?: string;
 
+  @ApiPropertyOptional({
+    format: 'uuid',
+    description: 'Filter links to a specific facility / transit park / terminal',
+  })
   @IsOptional()
   @IsUUID()
   site_id?: string;
 
+  @ApiPropertyOptional({ enum: BARRIER_ROLES })
   @IsOptional()
   @IsIn(BARRIER_ROLES)
   barrier_role?: string;
 
+  @ApiPropertyOptional({ enum: BARRIER_OPERATIONAL_STATUSES })
   @IsOptional()
   @IsIn(BARRIER_OPERATIONAL_STATUSES)
   operational_status?: string;
 
+  @ApiPropertyOptional({ enum: BARRIER_STATUSES })
   @IsOptional()
   @IsIn(BARRIER_STATUSES)
   status?: string;
@@ -87,32 +108,44 @@ export class CreateBarrierDto {
   @IsNotEmpty()
   barrier_id_number: string;
 
-  @ApiPropertyOptional({ enum: BARRIER_OPERATIONAL_STATUSES })
+  @ApiPropertyOptional({
+    enum: BARRIER_OPERATIONAL_STATUSES,
+    default: 'OFFLINE',
+    description: 'Partner/live status; defaults to OFFLINE until access-control sync',
+  })
   @IsOptional()
   @IsIn(BARRIER_OPERATIONAL_STATUSES)
   operational_status?: string;
 
-  @ApiPropertyOptional({ enum: BARRIER_STATUSES })
+  @ApiPropertyOptional({
+    enum: BARRIER_STATUSES,
+    default: 'ACTIVE',
+    description: 'Admin enable/disable status',
+  })
   @IsOptional()
   @IsIn(BARRIER_STATUSES)
   status?: string;
 }
 
 export class UpdateBarrierDto {
+  @ApiPropertyOptional({ example: 'Access Control Co.' })
   @IsOptional()
   @IsString()
   @IsNotEmpty()
   service_provider_name?: string;
 
+  @ApiPropertyOptional({ example: 'BR-049' })
   @IsOptional()
   @IsString()
   @IsNotEmpty()
   barrier_id_number?: string;
 
+  @ApiPropertyOptional({ enum: BARRIER_OPERATIONAL_STATUSES })
   @IsOptional()
   @IsIn(BARRIER_OPERATIONAL_STATUSES)
   operational_status?: string;
 
+  @ApiPropertyOptional({ enum: BARRIER_STATUSES })
   @IsOptional()
   @IsIn(BARRIER_STATUSES)
   status?: string;
@@ -133,13 +166,25 @@ export class CreateBarrierSiteLinkDto {
 }
 
 export class AssignSiteBarriersDto {
-  @ApiPropertyOptional({ type: [String], format: 'uuid' })
+  @ApiPropertyOptional({
+    type: [String],
+    format: 'uuid',
+    description:
+      'Replace ENTRY barriers for the site. Omit to leave entry links unchanged; pass [] to clear.',
+    example: ['a1b2c3d4-e5f6-7890-abcd-ef1234567890'],
+  })
   @IsOptional()
   @IsArray()
   @IsUUID('4', { each: true })
   entry_barrier_ids?: string[];
 
-  @ApiPropertyOptional({ type: [String], format: 'uuid' })
+  @ApiPropertyOptional({
+    type: [String],
+    format: 'uuid',
+    description:
+      'Replace EXIT barriers for the site. Omit to leave exit links unchanged; pass [] to clear.',
+    example: ['b2c3d4e5-f6a7-8901-bcde-f12345678901'],
+  })
   @IsOptional()
   @IsArray()
   @IsUUID('4', { each: true })

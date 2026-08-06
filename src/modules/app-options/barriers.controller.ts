@@ -13,7 +13,14 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+} from '@nestjs/swagger';
 import { SuperAdminGuard } from '../../common/guards';
 import { BarriersService } from './barriers.service';
 import {
@@ -23,6 +30,13 @@ import {
   QueryBarriersDto,
   UpdateBarrierDto,
 } from './dto/barriers.dto';
+import {
+  BarrierDeleteResponseDto,
+  BarrierListResponseDto,
+  BarrierResponseDto,
+  BarrierSummaryResponseDto,
+  SiteBarriersResponseDto,
+} from './dto/barriers-response.dto';
 
 @ApiTags('barriers')
 @ApiBearerAuth('access-token')
@@ -52,6 +66,8 @@ export class BarriersController {
   }
 
   @Post()
+  @ApiOperation({ summary: 'Create a barrier in the catalog' })
+  @ApiCreatedResponse({ type: BarrierResponseDto })
   async create(@Body() dto: CreateBarrierDto) {
     return this.ok(
       'Barrier created successfully',
@@ -60,6 +76,12 @@ export class BarriersController {
   }
 
   @Get('summary')
+  @ApiOperation({
+    summary: 'Barrier KPI summary',
+    description:
+      'Distinct barrier counts for all / entry / exit. Supports the same site filters as the list endpoint.',
+  })
+  @ApiOkResponse({ type: BarrierSummaryResponseDto })
   async summary(@Query() query: QueryBarriersDto) {
     return this.ok(
       'Barrier summary fetched successfully',
@@ -67,8 +89,19 @@ export class BarriersController {
     );
   }
 
-  /** Assign/replace entry & exit barriers for a facility / transit park / terminal. */
   @Put('sites/:siteType/:siteId')
+  @ApiOperation({
+    summary: 'Assign entry & exit barriers for a site',
+    description:
+      'Replaces ENTRY and/or EXIT barrier sets for a facility, transit park, or terminal. ' +
+      'siteType accepts FACILITY | TRANSIT_PARK | TERMINAL (kebab-case also allowed).',
+  })
+  @ApiParam({
+    name: 'siteType',
+    enum: ['FACILITY', 'TRANSIT_PARK', 'TERMINAL', 'facility', 'transit-park', 'terminal'],
+  })
+  @ApiParam({ name: 'siteId', format: 'uuid' })
+  @ApiOkResponse({ type: SiteBarriersResponseDto })
   async assignSiteBarriers(
     @Param('siteType') siteType: string,
     @Param('siteId', ParseUUIDPipe) siteId: string,
@@ -82,6 +115,13 @@ export class BarriersController {
   }
 
   @Get('sites/:siteType/:siteId')
+  @ApiOperation({ summary: 'List entry & exit barriers for a site' })
+  @ApiParam({
+    name: 'siteType',
+    enum: ['FACILITY', 'TRANSIT_PARK', 'TERMINAL', 'facility', 'transit-park', 'terminal'],
+  })
+  @ApiParam({ name: 'siteId', format: 'uuid' })
+  @ApiOkResponse({ type: SiteBarriersResponseDto })
   async findSiteBarriers(
     @Param('siteType') siteType: string,
     @Param('siteId', ParseUUIDPipe) siteId: string,
@@ -94,6 +134,13 @@ export class BarriersController {
   }
 
   @Get()
+  @ApiOperation({
+    summary: 'List barriers',
+    description:
+      'Catalog mode (default): one row per barrier. ' +
+      'Link mode (when site_type / site_id / park_type / barrier_role is set): one row per barrier↔site link.',
+  })
+  @ApiOkResponse({ type: BarrierListResponseDto })
   async findAll(@Query() query: QueryBarriersDto) {
     return this.ok(
       'Barriers fetched successfully',
@@ -102,6 +149,9 @@ export class BarriersController {
   }
 
   @Get(':id')
+  @ApiOperation({ summary: 'Get a barrier by id (includes linked_sites)' })
+  @ApiParam({ name: 'id', format: 'uuid' })
+  @ApiOkResponse({ type: BarrierResponseDto })
   async findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.ok(
       'Barrier fetched successfully',
@@ -110,6 +160,9 @@ export class BarriersController {
   }
 
   @Put(':id')
+  @ApiOperation({ summary: 'Update a barrier' })
+  @ApiParam({ name: 'id', format: 'uuid' })
+  @ApiOkResponse({ type: BarrierResponseDto })
   async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateBarrierDto,
@@ -121,6 +174,12 @@ export class BarriersController {
   }
 
   @Patch(':id/disable')
+  @ApiOperation({
+    summary: 'Disable a barrier (status → INACTIVE)',
+    description: 'Preferred over delete when the barrier is still linked to locations.',
+  })
+  @ApiParam({ name: 'id', format: 'uuid' })
+  @ApiOkResponse({ type: BarrierResponseDto })
   async disable(@Param('id', ParseUUIDPipe) id: string) {
     return this.ok(
       'Barrier disabled successfully',
@@ -129,6 +188,9 @@ export class BarriersController {
   }
 
   @Patch(':id/enable')
+  @ApiOperation({ summary: 'Enable a barrier (status → ACTIVE)' })
+  @ApiParam({ name: 'id', format: 'uuid' })
+  @ApiOkResponse({ type: BarrierResponseDto })
   async enable(@Param('id', ParseUUIDPipe) id: string) {
     return this.ok(
       'Barrier enabled successfully',
@@ -137,12 +199,22 @@ export class BarriersController {
   }
 
   @Delete(':id')
+  @ApiOperation({
+    summary: 'Delete a barrier',
+    description:
+      'Returns 409 if the barrier is still linked to a location or has handheld devices assigned. Unlink first, or use disable.',
+  })
+  @ApiParam({ name: 'id', format: 'uuid' })
+  @ApiOkResponse({ type: BarrierDeleteResponseDto })
   async remove(@Param('id', ParseUUIDPipe) id: string) {
     await this.barriersService.delete(id);
     return this.ok('Barrier deleted successfully', null);
   }
 
   @Post(':id/site-links')
+  @ApiOperation({ summary: 'Link a barrier to a site as ENTRY or EXIT' })
+  @ApiParam({ name: 'id', format: 'uuid' })
+  @ApiCreatedResponse({ type: BarrierResponseDto })
   async addSiteLink(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: CreateBarrierSiteLinkDto,
@@ -154,6 +226,10 @@ export class BarriersController {
   }
 
   @Delete(':id/site-links/:linkId')
+  @ApiOperation({ summary: 'Remove a barrier↔site link' })
+  @ApiParam({ name: 'id', format: 'uuid' })
+  @ApiParam({ name: 'linkId', format: 'uuid' })
+  @ApiOkResponse({ type: BarrierResponseDto })
   async removeSiteLink(
     @Param('id', ParseUUIDPipe) id: string,
     @Param('linkId', ParseUUIDPipe) linkId: string,

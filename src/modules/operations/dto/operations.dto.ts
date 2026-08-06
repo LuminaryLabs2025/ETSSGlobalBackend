@@ -13,6 +13,7 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 // ─── Shared query ───
 export class QueryOperationsDto {
@@ -223,40 +224,59 @@ export class ReasonDto {
 
 // ─── Trucks ───
 export class CreateTruckDto {
+  @ApiProperty({ example: 'AAA-423-WA' })
   @IsString()
   @IsNotEmpty()
   plate_number: string;
 
+  @ApiProperty({
+    format: 'uuid',
+    description: 'UUID from /api/truck-types (not a hardcoded type string)',
+  })
   @IsUUID()
   truck_type_id: string;
 
+  @ApiPropertyOptional({ example: 'White' })
   @IsOptional()
   @IsString()
   color?: string;
 
+  @ApiPropertyOptional({ example: 'WDB9300341L123456' })
   @IsOptional()
   @IsString()
   chassis_number?: string;
 
+  @ApiPropertyOptional({ example: 'Mercedes-Benz' })
   @IsOptional()
   @IsString()
   brand?: string;
 
+  @ApiPropertyOptional({ example: 'Actros 2548' })
   @IsOptional()
   @IsString()
   model?: string;
 
+  @ApiPropertyOptional({
+    format: 'uuid',
+    description: 'Must belong to the selected truck_type_id',
+  })
   @IsOptional()
   @IsUUID()
   truck_length_id?: string;
 
+  @ApiPropertyOptional({
+    format: 'uuid',
+    description: 'Must belong to the selected truck_type_id',
+  })
   @IsOptional()
   @IsUUID()
   truck_capacity_id?: string;
 
+  @ApiProperty({ format: 'uuid' })
   @IsUUID()
   transporter_company_id: string;
 
+  @ApiPropertyOptional({ enum: VISIBILITIES })
   @IsOptional()
   @IsString()
   @IsIn(VISIBILITIES)
@@ -275,37 +295,46 @@ export class BulkCreateTrucksDto {
 }
 
 export class CreateTruckItemDto {
+  @ApiProperty({ example: 'AAA-423-WA' })
   @IsString()
   @IsNotEmpty()
   plate_number: string;
 
+  @ApiProperty({ format: 'uuid' })
   @IsUUID()
   truck_type_id: string;
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   color?: string;
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   chassis_number?: string;
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   brand?: string;
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   model?: string;
 
+  @ApiPropertyOptional({ format: 'uuid' })
   @IsOptional()
   @IsUUID()
   truck_length_id?: string;
 
+  @ApiPropertyOptional({ format: 'uuid' })
   @IsOptional()
   @IsUUID()
   truck_capacity_id?: string;
 
+  @ApiPropertyOptional({ enum: VISIBILITIES })
   @IsOptional()
   @IsString()
   @IsIn(VISIBILITIES)

@@ -9,6 +9,7 @@ import {
   TERMINAL_TYPES,
   TRANSIT_PARK_TYPES,
 } from './terminals-parks-facilities.dto';
+import { BarrierDto } from '../../app-options/dto/barriers-response.dto';
 
 class ResponseEnvelopeDto {
   @ApiProperty({ example: true })
@@ -75,6 +76,18 @@ export class TerminalDto {
 
   @ApiProperty()
   updated_at: Date;
+
+  @ApiProperty({
+    type: () => [BarrierDto],
+    description: 'Linked ENTRY barriers for this terminal',
+  })
+  entry_barriers: BarrierDto[];
+
+  @ApiProperty({
+    type: () => [BarrierDto],
+    description: 'Linked EXIT barriers for this terminal',
+  })
+  exit_barriers: BarrierDto[];
 }
 
 class TerminalListDataDto {
@@ -175,6 +188,18 @@ export class TransitParkDto {
 
   @ApiProperty()
   updated_at: Date;
+
+  @ApiProperty({
+    type: () => [BarrierDto],
+    description: 'Linked ENTRY barriers for this transit park',
+  })
+  entry_barriers: BarrierDto[];
+
+  @ApiProperty({
+    type: () => [BarrierDto],
+    description: 'Linked EXIT barriers for this transit park',
+  })
+  exit_barriers: BarrierDto[];
 }
 
 class TransitParkListDataDto {
@@ -272,6 +297,18 @@ export class FacilityDto {
 
   @ApiProperty()
   updated_at: Date;
+
+  @ApiProperty({
+    type: () => [BarrierDto],
+    description: 'Linked ENTRY barriers for this facility',
+  })
+  entry_barriers: BarrierDto[];
+
+  @ApiProperty({
+    type: () => [BarrierDto],
+    description: 'Linked EXIT barriers for this facility',
+  })
+  exit_barriers: BarrierDto[];
 }
 
 class FacilityListDataDto {
