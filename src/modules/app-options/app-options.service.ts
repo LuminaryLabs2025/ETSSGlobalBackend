@@ -9,6 +9,8 @@ import {
   Brackets,
   DataSource,
   DeepPartial,
+  EntityManager,
+  EntityTarget,
   In,
   QueryFailedError,
   Repository,
@@ -32,6 +34,7 @@ import {
   TepTypeTruckType,
   TruckTypeBookingCategory,
   TerminalGate,
+  Barrier,
   TruckCapacity,
   TruckLength,
   TruckType,
@@ -179,15 +182,11 @@ export class AppOptionsService {
     }
 
     return this.dataSource.transaction(async (manager) => {
-      await manager.update(
-        TruckType,
-        { id },
-        this.cleanUndefined({
-          name: dto.name,
-          description: dto.description,
-          status: dto.status,
-        }),
-      );
+      await this.updateColumnsIfAny(manager, TruckType, id, {
+        name: dto.name,
+        description: dto.description,
+        status: dto.status,
+      });
 
       if (dto.linked_booking_categories) {
         await manager.delete(TruckTypeBookingCategory, { truck_type_id: id });
@@ -432,14 +431,10 @@ export class AppOptionsService {
     }
 
     return this.dataSource.transaction(async (manager) => {
-      await manager.update(
-        TepType,
-        { id },
-        this.cleanUndefined({
-          name: dto.name,
-          status: dto.status,
-        }),
-      );
+      await this.updateColumnsIfAny(manager, TepType, id, {
+        name: dto.name,
+        status: dto.status,
+      });
 
       if (dto.booking_category_ids) {
         await manager.delete(TepTypeBookingCategory, { tep_type_id: id });
@@ -552,14 +547,10 @@ export class AppOptionsService {
       );
     }
     return this.dataSource.transaction(async (manager) => {
-      await manager.update(
-        FacilityType,
-        { id },
-        this.cleanUndefined({
-          name: dto.name,
-          status: dto.status,
-        }),
-      );
+      await this.updateColumnsIfAny(manager, FacilityType, id, {
+        name: dto.name,
+        status: dto.status,
+      });
       if (dto.park_type_ids) {
         await manager.delete(FacilityTypeParkType, { facility_type_id: id });
         await manager.save(
@@ -870,13 +861,35 @@ export class AppOptionsService {
 
   // Handheld devices
   async createHandheldDevice(dto: CreateHandheldDeviceDto) {
-    await this.requireEntity(this.locationRepository, dto.location_id, 'Location not found');
+    if (!dto.barrier_id && !dto.location_id) {
+      throw new BadRequestException(
+        'Provide barrier_id (preferred) or location_id',
+      );
+    }
+    if (dto.location_id) {
+      await this.requireEntity(
+        this.locationRepository,
+        dto.location_id,
+        'Location not found',
+      );
+    }
+    if (dto.barrier_id) {
+      const barrier = await this.dataSource.getRepository(Barrier).findOne({
+        where: { id: dto.barrier_id },
+      });
+      if (!barrier) throw new NotFoundException('Barrier not found');
+    }
     if (dto.user_id) {
       await this.requireEntity(this.userRepository, dto.user_id, 'Linked user not found');
     }
     return this.createEntity(
       this.handheldDeviceRepository,
-      dto,
+      {
+        ...dto,
+        location_id: dto.location_id ?? null,
+        barrier_id: dto.barrier_id ?? null,
+        status: dto.status ?? 'ACTIVE',
+      },
       'Handheld device already exists',
     );
   }
@@ -885,11 +898,13 @@ export class AppOptionsService {
     const qb = this.handheldDeviceRepository
       .createQueryBuilder('row')
       .leftJoinAndSelect('row.location', 'location')
+      .leftJoinAndSelect('row.barrier', 'barrier')
       .leftJoinAndSelect('row.user', 'user');
     this.applyCommonFilters(qb, query, [
       'row.name',
       'row.status',
       'location.name',
+      'barrier.barrier_id_number',
       'user.first_name',
       'user.last_name',
       'user.email',
@@ -901,7 +916,7 @@ export class AppOptionsService {
   async findHandheldDevice(id: string) {
     const item = await this.handheldDeviceRepository.findOne({
       where: { id },
-      relations: ['location', 'user'],
+      relations: ['location', 'barrier', 'user'],
     });
     if (!item) throw new NotFoundException('Handheld device not found');
     return item;
@@ -910,6 +925,12 @@ export class AppOptionsService {
   async updateHandheldDevice(id: string, dto: UpdateHandheldDeviceDto) {
     if (dto.location_id) {
       await this.requireEntity(this.locationRepository, dto.location_id, 'Location not found');
+    }
+    if (dto.barrier_id) {
+      const barrier = await this.dataSource.getRepository(Barrier).findOne({
+        where: { id: dto.barrier_id },
+      });
+      if (!barrier) throw new NotFoundException('Barrier not found');
     }
     if (dto.user_id) {
       await this.requireEntity(this.userRepository, dto.user_id, 'Linked user not found');
@@ -1267,5 +1288,20 @@ export class AppOptionsService {
     return Object.fromEntries(
       Object.entries(obj).filter(([, value]) => value !== undefined),
     ) as Partial<T>;
+  }
+
+  /**
+   * TypeORM throws UpdateValuesMissingError on an empty payload, which happens
+   * whenever a caller only changes join-table links (e.g. booking categories).
+   */
+  private async updateColumnsIfAny(
+    manager: EntityManager,
+    target: EntityTarget<any>,
+    id: string,
+    columns: Record<string, unknown>,
+  ) {
+    const payload = this.cleanUndefined(columns);
+    if (!Object.keys(payload).length) return;
+    await manager.update(target, { id }, payload);
   }
 }

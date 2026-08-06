@@ -5,7 +5,8 @@ const MODULE_BY_SEGMENT: Record<string, string> = {
   'truck-types': 'Truck Types',
   'tep-types': 'TEP Types',
   'facility-types': 'Facilities',
-  'terminal-gates': 'Terminals',
+  'terminal-gates': 'Barriers',
+  barriers: 'Barriers',
   terminals: 'Terminals',
   'transit-parks': 'Transit Parks',
   facilities: 'Facilities',
@@ -32,6 +33,7 @@ const IMPORTANT_ROOTS = new Set([
   'tep-types',
   'facility-types',
   'terminal-gates',
+  'barriers',
   'terminals',
   'transit-parks',
   'facilities',
@@ -94,8 +96,8 @@ export function inferHttpActivityContext(
     actionLabel = `${httpMethodToAction(method)} TEP type`;
   } else if (root === 'facility-types') {
     actionLabel = `${httpMethodToAction(method)} facility`;
-  } else if (root === 'terminal-gates') {
-    actionLabel = `${httpMethodToAction(method)} terminal`;
+  } else if (root === 'terminal-gates' || root === 'barriers') {
+    actionLabel = `${httpMethodToAction(method)} barrier`;
   } else if (root === 'terminals') {
     actionLabel = `${httpMethodToAction(method)} terminal`;
   } else if (root === 'transit-parks') {

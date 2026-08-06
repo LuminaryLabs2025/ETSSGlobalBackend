@@ -24,6 +24,8 @@ export {
   PaymentType,
   InfractionCategory,
   TerminalGate,
+  Barrier,
+  BarrierSiteLink,
   Location,
   HandheldDevice,
   RfidTag,

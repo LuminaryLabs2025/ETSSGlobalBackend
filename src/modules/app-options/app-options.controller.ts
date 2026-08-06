@@ -498,46 +498,54 @@ export class AppOptionsController {
     return this.ok('Infraction category deleted successfully', null);
   }
 
-  // Terminal gates
+  // Terminal gates (DEPRECATED — use /api/barriers)
+  /** @deprecated Prefer POST /api/barriers */
   @Post('terminal-gates')
   async createTerminalGate(@Body() dto: CreateTerminalGateDto) {
     return this.ok(
-      'Terminal gate created successfully',
+      'Terminal gate created successfully (deprecated: use POST /api/barriers)',
       await this.appOptionsService.createTerminalGate(dto),
     );
   }
 
+  /** @deprecated Prefer GET /api/barriers */
   @Get('terminal-gates')
   async findTerminalGates(@Query() query: QueryAppOptionsDto) {
     return this.ok(
-      'Terminal gates fetched successfully',
+      'Terminal gates fetched successfully (deprecated: use GET /api/barriers)',
       await this.appOptionsService.findTerminalGates(query),
     );
   }
 
+  /** @deprecated Prefer GET /api/barriers/:id */
   @Get('terminal-gates/:id')
   async findTerminalGate(@Param('id', ParseUUIDPipe) id: string) {
     return this.ok(
-      'Terminal gate fetched successfully',
+      'Terminal gate fetched successfully (deprecated: use GET /api/barriers/:id)',
       await this.appOptionsService.findTerminalGate(id),
     );
   }
 
+  /** @deprecated Prefer PUT /api/barriers/:id */
   @Put('terminal-gates/:id')
   async updateTerminalGate(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateTerminalGateDto,
   ) {
     return this.ok(
-      'Terminal gate updated successfully',
+      'Terminal gate updated successfully (deprecated: use PUT /api/barriers/:id)',
       await this.appOptionsService.updateTerminalGate(id, dto),
     );
   }
 
+  /** @deprecated Prefer DELETE /api/barriers/:id */
   @Delete('terminal-gates/:id')
   async deleteTerminalGate(@Param('id', ParseUUIDPipe) id: string) {
     await this.appOptionsService.deleteTerminalGate(id);
-    return this.ok('Terminal gate deleted successfully', null);
+    return this.ok(
+      'Terminal gate deleted successfully (deprecated: use DELETE /api/barriers/:id)',
+      null,
+    );
   }
 
   // Handheld devices

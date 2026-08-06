@@ -8,6 +8,7 @@ import {
   OneToMany,
   PrimaryGeneratedColumn,
   Unique,
+  UpdateDateColumn,
 } from 'typeorm';
 import { User } from './user.entity';
 import { UserType } from './user-type.entity';
@@ -356,6 +357,10 @@ export class InfractionCategory {
   status: string;
 }
 
+/**
+ * @deprecated Legacy paired entry/exit gate rows. Prefer `Barrier` + `BarrierSiteLink`.
+ * Kept for migration compatibility; new writes should use `/api/barriers`.
+ */
 @Entity('terminal_gates')
 @Unique('UQ_terminal_gates_entry_barrier_id', ['entry_barrier_id'])
 @Unique('UQ_terminal_gates_exit_barrier_id', ['exit_barrier_id'])
@@ -382,6 +387,95 @@ export class TerminalGate {
   created_at: Date;
 }
 
+/**
+ * First-class barrier/gate catalog (prototype: Barriers module).
+ * Physical access-control barriers that can be linked to Facilities,
+ * Transit Parks, or Terminals as ENTRY and/or EXIT.
+ */
+@Entity('barriers')
+@Unique('UQ_barriers_barrier_id_number', ['barrier_id_number'])
+@Check(
+  'CHK_barriers_operational_status',
+  `"operational_status" IN ('ONLINE', 'OFFLINE')`,
+)
+@Check('CHK_barriers_status', `"status" IN ('ACTIVE', 'INACTIVE')`)
+export class Barrier {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  /** Partner / hardware barrier identifier (e.g. BR-049). */
+  @Column()
+  barrier_id_number: string;
+
+  /** Access-control company name. */
+  @Column()
+  service_provider_name: string;
+
+  /** Live partner status (ONLINE / OFFLINE). */
+  @Column({ default: 'OFFLINE' })
+  operational_status: string;
+
+  /** Admin lifecycle (ACTIVE / INACTIVE = disabled). */
+  @Column({ default: 'ACTIVE' })
+  status: string;
+
+  @OneToMany(() => BarrierSiteLink, (link) => link.barrier)
+  site_links: BarrierSiteLink[];
+
+  @OneToMany(() => HandheldDevice, (device) => device.barrier)
+  handheld_devices: HandheldDevice[];
+
+  @CreateDateColumn()
+  created_at: Date;
+
+  @UpdateDateColumn()
+  updated_at: Date;
+}
+
+@Entity('barrier_site_links')
+@Unique('UQ_barrier_site_links_unique', [
+  'barrier_id',
+  'site_type',
+  'site_id',
+  'barrier_role',
+])
+@Check(
+  'CHK_barrier_site_links_site_type',
+  `"site_type" IN ('FACILITY', 'TRANSIT_PARK', 'TERMINAL')`,
+)
+@Check(
+  'CHK_barrier_site_links_barrier_role',
+  `"barrier_role" IN ('ENTRY', 'EXIT')`,
+)
+export class BarrierSiteLink {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Column()
+  barrier_id: string;
+
+  @ManyToOne(() => Barrier, (barrier) => barrier.site_links, {
+    onDelete: 'CASCADE',
+  })
+  @JoinColumn({ name: 'barrier_id' })
+  barrier: Barrier;
+
+  /** FACILITY | TRANSIT_PARK | TERMINAL */
+  @Column()
+  site_type: string;
+
+  /** UUID of the facility / transit park / terminal row. */
+  @Column({ type: 'uuid' })
+  site_id: string;
+
+  /** ENTRY | EXIT for this site. Same barrier may be ENTRY on one site and EXIT on another. */
+  @Column()
+  barrier_role: string;
+
+  @CreateDateColumn()
+  created_at: Date;
+}
+
 @Entity('handheld_devices')
 @Unique('UQ_handheld_devices_name', ['name'])
 export class HandheldDevice {
@@ -398,14 +492,26 @@ export class HandheldDevice {
   @JoinColumn({ name: 'user_id' })
   user: User | null;
 
-  @Column()
-  location_id: string;
+  /** @deprecated Prefer barrier_id. Kept for facility-timeslot location profiles. */
+  @Column({ type: 'uuid', nullable: true })
+  location_id: string | null;
 
   @ManyToOne(() => Location, (location) => location.handheld_devices, {
-    onDelete: 'RESTRICT',
+    onDelete: 'SET NULL',
+    nullable: true,
   })
   @JoinColumn({ name: 'location_id' })
-  location: Location;
+  location: Location | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  barrier_id: string | null;
+
+  @ManyToOne(() => Barrier, (barrier) => barrier.handheld_devices, {
+    onDelete: 'SET NULL',
+    nullable: true,
+  })
+  @JoinColumn({ name: 'barrier_id' })
+  barrier: Barrier | null;
 
   @Column({ default: 'ACTIVE' })
   status: string;

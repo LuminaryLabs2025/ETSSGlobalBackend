@@ -495,8 +495,14 @@ export class CreateHandheldDeviceDto {
   @IsUUID()
   user_id?: string;
 
+  /** @deprecated Prefer barrier_id for Barriers module. */
+  @IsOptional()
   @IsUUID()
-  location_id: string;
+  location_id?: string;
+
+  @IsOptional()
+  @IsUUID()
+  barrier_id?: string;
 
   @IsOptional()
   @IsString()
@@ -516,6 +522,10 @@ export class UpdateHandheldDeviceDto {
   @IsOptional()
   @IsUUID()
   location_id?: string;
+
+  @IsOptional()
+  @IsUUID()
+  barrier_id?: string;
 
   @IsOptional()
   @IsString()

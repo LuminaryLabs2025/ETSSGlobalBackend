@@ -20,6 +20,7 @@ import {
   Terminal,
   TransitPark,
 } from '../../database/entities';
+import { BarriersService } from '../app-options/barriers.service';
 import {
   CreateFacilityDto,
   CreateTerminalDto,
@@ -64,12 +65,81 @@ export class TerminalsParksFacilitiesService {
     private readonly facilityTimeslotRepository: Repository<FacilityTimeslot>,
     @InjectRepository(FacilityTimeslotAssignment)
     private readonly facilityTimeslotAssignmentRepository: Repository<FacilityTimeslotAssignment>,
+    private readonly barriersService: BarriersService,
   ) {}
+
+  private extractBarrierAssignment(dto: {
+    entry_barrier_ids?: string[];
+    exit_barrier_ids?: string[];
+  }) {
+    const {
+      entry_barrier_ids,
+      exit_barrier_ids,
+      ...entityFields
+    } = dto as Record<string, unknown> & {
+      entry_barrier_ids?: string[];
+      exit_barrier_ids?: string[];
+    };
+    return { entry_barrier_ids, exit_barrier_ids, entityFields };
+  }
+
+  private async applyBarrierAssignment(
+    siteType: 'FACILITY' | 'TRANSIT_PARK' | 'TERMINAL',
+    siteId: string,
+    entry_barrier_ids?: string[],
+    exit_barrier_ids?: string[],
+  ) {
+    if (entry_barrier_ids === undefined && exit_barrier_ids === undefined) {
+      return;
+    }
+    await this.barriersService.assignSiteBarriers(siteType, siteId, {
+      entry_barrier_ids,
+      exit_barrier_ids,
+    });
+  }
+
+  private async withBarriers<T extends { id: string }>(
+    siteType: 'FACILITY' | 'TRANSIT_PARK' | 'TERMINAL',
+    row: T,
+  ) {
+    const barriers = await this.barriersService.findBarriersForSite(
+      siteType,
+      row.id,
+    );
+    return {
+      ...row,
+      entry_barriers: barriers.entry_barriers,
+      exit_barriers: barriers.exit_barriers,
+    };
+  }
+
+  private async withBarriersPaginated(
+    siteType: 'FACILITY' | 'TRANSIT_PARK' | 'TERMINAL',
+    page: { data: { id: string }[]; meta: unknown },
+  ) {
+    const barriers = await this.barriersService.findBarriersForSites(
+      siteType,
+      page.data.map((row) => row.id),
+    );
+    return {
+      ...page,
+      data: page.data.map((row) => ({
+        ...row,
+        entry_barriers: barriers.get(row.id)?.entry_barriers ?? [],
+        exit_barriers: barriers.get(row.id)?.exit_barriers ?? [],
+      })),
+    };
+  }
 
   // Terminals
   async createTerminal(dto: CreateTerminalDto) {
+    const { entry_barrier_ids, exit_barrier_ids, entityFields } =
+      this.extractBarrierAssignment(dto);
     const terminal = this.terminalRepository.create({
-      ...dto,
+      ...(entityFields as Omit<
+        CreateTerminalDto,
+        'entry_barrier_ids' | 'exit_barrier_ids'
+      >),
       terminal_code: await this.nextCode(
         Terminal,
         'terminal_code',
@@ -78,11 +148,18 @@ export class TerminalsParksFacilitiesService {
       status: dto.status ?? 'ACTIVE',
       booking_status: dto.booking_status ?? 'OPEN',
     });
-    return this.saveWithConflictMessage(
+    const saved = await this.saveWithConflictMessage(
       this.terminalRepository,
       terminal,
       'Terminal already exists',
     );
+    await this.applyBarrierAssignment(
+      'TERMINAL',
+      saved.id,
+      entry_barrier_ids,
+      exit_barrier_ids,
+    );
+    return this.withBarriers('TERMINAL', saved);
   }
 
   async findTerminals(query: QueryTerminalsParksFacilitiesDto) {
@@ -101,7 +178,10 @@ export class TerminalsParksFacilitiesService {
       });
     }
     qb.orderBy('row.name', 'ASC');
-    return this.paginateQueryBuilder(qb, query);
+    return this.withBarriersPaginated(
+      'TERMINAL',
+      await this.paginateQueryBuilder(qb, query),
+    );
   }
 
   async terminalsSummary() {
@@ -157,21 +237,22 @@ export class TerminalsParksFacilitiesService {
   }
 
   async findTerminal(id: string) {
-    return this.requireEntity(
-      this.terminalRepository,
-      id,
-      'Terminal not found',
-    );
-  }
-
-  async updateTerminal(id: string, dto: UpdateTerminalDto) {
     const terminal = await this.requireEntity(
       this.terminalRepository,
       id,
       'Terminal not found',
     );
-    // Terminal ID numbers are prefixed by type (PT/NPT), so a type change
-    // requires a new code in the destination sequence.
+    return this.withBarriers('TERMINAL', terminal);
+  }
+
+  async updateTerminal(id: string, dto: UpdateTerminalDto) {
+    const { entry_barrier_ids, exit_barrier_ids, entityFields } =
+      this.extractBarrierAssignment(dto);
+    const terminal = await this.requireEntity(
+      this.terminalRepository,
+      id,
+      'Terminal not found',
+    );
     if (dto.terminal_type && dto.terminal_type !== terminal.terminal_type) {
       terminal.terminal_code = await this.nextCode(
         Terminal,
@@ -179,12 +260,19 @@ export class TerminalsParksFacilitiesService {
         TERMINAL_CODE_PREFIXES[dto.terminal_type],
       );
     }
-    Object.assign(terminal, this.cleanUndefined(dto));
-    return this.saveWithConflictMessage(
+    Object.assign(terminal, this.cleanUndefined(entityFields));
+    const saved = await this.saveWithConflictMessage(
       this.terminalRepository,
       terminal,
       'Terminal already exists',
     );
+    await this.applyBarrierAssignment(
+      'TERMINAL',
+      saved.id,
+      entry_barrier_ids,
+      exit_barrier_ids,
+    );
+    return this.withBarriers('TERMINAL', saved);
   }
 
   async updateTerminalStatus(id: string, dto: UpdateStatusDto) {
@@ -236,8 +324,13 @@ export class TerminalsParksFacilitiesService {
 
   // Transit parks
   async createTransitPark(dto: CreateTransitParkDto) {
+    const { entry_barrier_ids, exit_barrier_ids, entityFields } =
+      this.extractBarrierAssignment(dto);
     const transitPark = this.transitParkRepository.create({
-      ...dto,
+      ...(entityFields as Omit<
+        CreateTransitParkDto,
+        'entry_barrier_ids' | 'exit_barrier_ids'
+      >),
       transit_park_code: await this.nextCode(
         TransitPark,
         'transit_park_code',
@@ -245,11 +338,18 @@ export class TerminalsParksFacilitiesService {
       ),
       status: dto.status ?? 'ACTIVE',
     });
-    return this.saveWithConflictMessage(
+    const saved = await this.saveWithConflictMessage(
       this.transitParkRepository,
       transitPark,
       'Transit park already exists',
     );
+    await this.applyBarrierAssignment(
+      'TRANSIT_PARK',
+      saved.id,
+      entry_barrier_ids,
+      exit_barrier_ids,
+    );
+    return this.withBarriers('TRANSIT_PARK', saved);
   }
 
   async findTransitParks(query: QueryTerminalsParksFacilitiesDto) {
@@ -263,7 +363,10 @@ export class TerminalsParksFacilitiesService {
       qb.andWhere('row.transit_park_type = :type', { type: query.type.trim() });
     }
     qb.orderBy('row.name', 'ASC');
-    return this.paginateQueryBuilder(qb, query);
+    return this.withBarriersPaginated(
+      'TRANSIT_PARK',
+      await this.paginateQueryBuilder(qb, query),
+    );
   }
 
   async transitParksSummary() {
@@ -311,14 +414,17 @@ export class TerminalsParksFacilitiesService {
   }
 
   async findTransitPark(id: string) {
-    return this.requireEntity(
+    const transitPark = await this.requireEntity(
       this.transitParkRepository,
       id,
       'Transit park not found',
     );
+    return this.withBarriers('TRANSIT_PARK', transitPark);
   }
 
   async updateTransitPark(id: string, dto: UpdateTransitParkDto) {
+    const { entry_barrier_ids, exit_barrier_ids, entityFields } =
+      this.extractBarrierAssignment(dto);
     const transitPark = await this.requireEntity(
       this.transitParkRepository,
       id,
@@ -334,12 +440,19 @@ export class TerminalsParksFacilitiesService {
         TRANSIT_PARK_CODE_PREFIXES[dto.transit_park_type],
       );
     }
-    Object.assign(transitPark, this.cleanUndefined(dto));
-    return this.saveWithConflictMessage(
+    Object.assign(transitPark, this.cleanUndefined(entityFields));
+    const saved = await this.saveWithConflictMessage(
       this.transitParkRepository,
       transitPark,
       'Transit park already exists',
     );
+    await this.applyBarrierAssignment(
+      'TRANSIT_PARK',
+      saved.id,
+      entry_barrier_ids,
+      exit_barrier_ids,
+    );
+    return this.withBarriers('TRANSIT_PARK', saved);
   }
 
   async updateTransitParkStatus(id: string, dto: UpdateStatusDto) {
@@ -381,19 +494,24 @@ export class TerminalsParksFacilitiesService {
 
   // Facilities
   async createFacility(dto: CreateFacilityDto) {
+    const { entry_barrier_ids, exit_barrier_ids, entityFields } =
+      this.extractBarrierAssignment(dto);
     const facilityCode = await this.nextCode(
       Facility,
       'facility_code',
       FACILITY_CODE_PREFIXES[dto.park_type],
     );
 
-    return this.dataSource.transaction(async (manager) => {
+    const created = await this.dataSource.transaction(async (manager) => {
       const facility = manager.create(Facility, {
-        ...dto,
+        ...(entityFields as Omit<
+          CreateFacilityDto,
+          'entry_barrier_ids' | 'exit_barrier_ids'
+        >),
         facility_code: facilityCode,
         status: dto.status ?? 'ACTIVE',
       });
-      const created = await this.saveWithConflictMessage(
+      const saved = await this.saveWithConflictMessage(
         manager.getRepository(Facility),
         facility,
         'Facility already exists',
@@ -404,16 +522,24 @@ export class TerminalsParksFacilitiesService {
       const location = await this.saveWithConflictMessage(
         manager.getRepository(Location),
         manager.create(Location, {
-          name: created.name,
+          name: saved.name,
           type: 'FACILITY',
-          reference_id: created.id,
+          reference_id: saved.id,
         }),
         'A facility location with this name already exists',
       );
       await this.assignAllTimeslotsToLocation(manager, location.id);
 
-      return created;
+      return saved;
     });
+
+    await this.applyBarrierAssignment(
+      'FACILITY',
+      created.id,
+      entry_barrier_ids,
+      exit_barrier_ids,
+    );
+    return this.withBarriers('FACILITY', created);
   }
 
   async findFacilities(query: QueryTerminalsParksFacilitiesDto) {
@@ -433,7 +559,10 @@ export class TerminalsParksFacilitiesService {
       });
     }
     qb.orderBy('row.name', 'ASC');
-    return this.paginateQueryBuilder(qb, query);
+    return this.withBarriersPaginated(
+      'FACILITY',
+      await this.paginateQueryBuilder(qb, query),
+    );
   }
 
   async facilitiesSummary() {
@@ -487,14 +616,17 @@ export class TerminalsParksFacilitiesService {
   }
 
   async findFacility(id: string) {
-    return this.requireEntity(
+    const facility = await this.requireEntity(
       this.facilityRepository,
       id,
       'Facility not found',
     );
+    return this.withBarriers('FACILITY', facility);
   }
 
   async updateFacility(id: string, dto: UpdateFacilityDto) {
+    const { entry_barrier_ids, exit_barrier_ids, entityFields } =
+      this.extractBarrierAssignment(dto);
     const facility = await this.requireEntity(
       this.facilityRepository,
       id,
@@ -507,11 +639,12 @@ export class TerminalsParksFacilitiesService {
         FACILITY_CODE_PREFIXES[dto.park_type],
       );
     }
-    const nameChanged = dto.name && dto.name !== facility.name;
-    Object.assign(facility, this.cleanUndefined(dto));
+    const nameChanged =
+      !!dto.name && dto.name !== facility.name;
+    Object.assign(facility, this.cleanUndefined(entityFields));
 
-    return this.dataSource.transaction(async (manager) => {
-      const updated = await this.saveWithConflictMessage(
+    const updated = await this.dataSource.transaction(async (manager) => {
+      const saved = await this.saveWithConflictMessage(
         manager.getRepository(Facility),
         facility,
         'Facility already exists',
@@ -520,11 +653,19 @@ export class TerminalsParksFacilitiesService {
         await manager.update(
           Location,
           { type: 'FACILITY', reference_id: id },
-          { name: updated.name },
+          { name: saved.name },
         );
       }
-      return updated;
+      return saved;
     });
+
+    await this.applyBarrierAssignment(
+      'FACILITY',
+      updated.id,
+      entry_barrier_ids,
+      exit_barrier_ids,
+    );
+    return this.withBarriers('FACILITY', updated);
   }
 
   async updateFacilityStatus(id: string, dto: UpdateStatusDto) {

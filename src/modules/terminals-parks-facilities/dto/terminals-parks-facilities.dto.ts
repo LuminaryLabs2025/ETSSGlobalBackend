@@ -1,9 +1,12 @@
 import {
+  ArrayNotEmpty,
+  IsArray,
   IsIn,
   IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsUUID,
   Max,
   Min,
 } from 'class-validator';
@@ -113,6 +116,16 @@ export class CreateTerminalDto {
   @IsString()
   @IsIn(BOOKING_STATUSES)
   booking_status?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsUUID('4', { each: true })
+  entry_barrier_ids?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsUUID('4', { each: true })
+  exit_barrier_ids?: string[];
 }
 
 export class UpdateTerminalDto {
@@ -162,6 +175,16 @@ export class UpdateTerminalDto {
   @IsString()
   @IsIn(BOOKING_STATUSES)
   booking_status?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsUUID('4', { each: true })
+  entry_barrier_ids?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsUUID('4', { each: true })
+  exit_barrier_ids?: string[];
 }
 
 export class UpdateBookingStatusDto {
@@ -208,6 +231,16 @@ export class CreateTransitParkDto {
   @IsString()
   @IsIn(STATUSES)
   status?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsUUID('4', { each: true })
+  entry_barrier_ids?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsUUID('4', { each: true })
+  exit_barrier_ids?: string[];
 }
 
 export class UpdateTransitParkDto {
@@ -252,6 +285,16 @@ export class UpdateTransitParkDto {
   @IsString()
   @IsIn(STATUSES)
   status?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsUUID('4', { each: true })
+  entry_barrier_ids?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsUUID('4', { each: true })
+  exit_barrier_ids?: string[];
 }
 
 // Facilities
@@ -302,6 +345,16 @@ export class CreateFacilityDto {
   @IsString()
   @IsIn(STATUSES)
   status?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsUUID('4', { each: true })
+  entry_barrier_ids?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsUUID('4', { each: true })
+  exit_barrier_ids?: string[];
 }
 
 export class UpdateFacilityDto {
@@ -357,6 +410,16 @@ export class UpdateFacilityDto {
   @IsString()
   @IsIn(STATUSES)
   status?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsUUID('4', { each: true })
+  entry_barrier_ids?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsUUID('4', { each: true })
+  exit_barrier_ids?: string[];
 }
 
 export class UpdateStatusDto {

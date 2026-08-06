@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { validate as isUuid } from 'uuid';
 import { Company } from '../../database/entities/company.entity';
-import { TerminalGate } from '../../database/entities/app-options.entities';
+import { Barrier } from '../../database/entities/app-options.entities';
 import { UserStatus } from '../../common/enums';
 import {
   UserType,
@@ -29,8 +29,8 @@ export class UserTypeFieldOptionsService {
   constructor(
     @InjectRepository(Company)
     private readonly companyRepository: Repository<Company>,
-    @InjectRepository(TerminalGate)
-    private readonly terminalGateRepository: Repository<TerminalGate>,
+    @InjectRepository(Barrier)
+    private readonly barrierRepository: Repository<Barrier>,
   ) {}
 
   /**
@@ -167,28 +167,23 @@ export class UserTypeFieldOptionsService {
   }
 
   private async barrierLocationOptions(): Promise<UserTypeFieldOption[]> {
-    const gates = await this.terminalGateRepository.find({
-      order: { location: 'ASC' },
+    const barriers = await this.barrierRepository.find({
+      where: { status: 'ACTIVE' },
+      order: { barrier_id_number: 'ASC' },
     });
-    const options: UserTypeFieldOption[] = [];
-    for (const g of gates) {
-      options.push({
-        label: `${g.location} — Entry: ${g.entry_barrier_name} (${g.entry_barrier_id})`,
-        value: g.entry_barrier_id,
-      });
-      options.push({
-        label: `${g.location} — Exit: ${g.exit_barrier_name} (${g.exit_barrier_id})`,
-        value: g.exit_barrier_id,
-      });
-    }
-    return options.sort((a, b) => a.label.localeCompare(b.label));
+    return barriers
+      .map((b) => ({
+        label: `${b.barrier_id_number} (${b.service_provider_name}) — ${b.operational_status}`,
+        value: b.id,
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label));
   }
 
   /**
    * After shape/required validation, ensures reference data exists:
    * - `optionsSource` multi-select / select values must appear in the same lists as GET `/api/user-types`.
    * - Company-backed sources require UUIDs that exist in the resolved option set.
-   * - `entry_barrier_id` / `exit_barrier_id` must exist on `terminal_gates` when those fields exist on the type.
+   * - `entry_barrier_id` / `exit_barrier_id` must exist on `barriers` when those fields exist on the type.
    */
   async assertExtraFieldsReferencesValid(
     metadata: UserTypeMetadata | null,
@@ -264,32 +259,23 @@ export class UserTypeFieldOptionsService {
     errors: string[],
   ): Promise<void> {
     const fieldNames = new Set(metadata.fields.map((f) => f.name));
-    if (fieldNames.has('entry_barrier_id')) {
-      const v = this.pickRawValue(data, 'entry_barrier_id');
-      if (v !== null && v !== undefined && String(v).trim() !== '') {
-        const cnt = await this.terminalGateRepository.count({
-          where: { entry_barrier_id: String(v).trim() },
-        });
-        if (cnt === 0) {
-          errors.push(
-            `Entry barrier ID "${v}" was not found. Create the gate in terminal gates or pick an id from GET /api/user-types.`,
-          );
-        }
+    const assertOne = async (field: string, label: string) => {
+      if (!fieldNames.has(field)) return;
+      const v = this.pickRawValue(data, field);
+      if (v === null || v === undefined || String(v).trim() === '') return;
+      const raw = String(v).trim();
+      const where = isUuid(raw)
+        ? [{ id: raw }, { barrier_id_number: raw }]
+        : [{ barrier_id_number: raw }];
+      const cnt = await this.barrierRepository.count({ where });
+      if (cnt === 0) {
+        errors.push(
+          `${label} "${v}" was not found. Create the barrier via POST /api/barriers or pick an id from GET /api/user-types.`,
+        );
       }
-    }
-    if (fieldNames.has('exit_barrier_id')) {
-      const v = this.pickRawValue(data, 'exit_barrier_id');
-      if (v !== null && v !== undefined && String(v).trim() !== '') {
-        const cnt = await this.terminalGateRepository.count({
-          where: { exit_barrier_id: String(v).trim() },
-        });
-        if (cnt === 0) {
-          errors.push(
-            `Exit barrier ID "${v}" was not found. Create the gate in terminal gates or pick an id from GET /api/user-types.`,
-          );
-        }
-      }
-    }
+    };
+    await assertOne('entry_barrier_id', 'Entry barrier ID');
+    await assertOne('exit_barrier_id', 'Exit barrier ID');
   }
 
   private pickRawValue(data: Record<string, any>, key: string): any {

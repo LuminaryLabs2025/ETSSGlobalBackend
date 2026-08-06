@@ -8,6 +8,7 @@ import {
   Terminal,
   TransitPark,
 } from '../../database/entities';
+import { AppOptionsModule } from '../app-options/app-options.module';
 import { TerminalsParksFacilitiesController } from './terminals-parks-facilities.controller';
 import { TerminalsParksFacilitiesService } from './terminals-parks-facilities.service';
 
@@ -21,6 +22,7 @@ import { TerminalsParksFacilitiesService } from './terminals-parks-facilities.se
       FacilityTimeslot,
       FacilityTimeslotAssignment,
     ]),
+    AppOptionsModule,
   ],
   controllers: [TerminalsParksFacilitiesController],
   providers: [TerminalsParksFacilitiesService],

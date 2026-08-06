@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import {
   BookingCategory,
+  Facility,
   FacilityTimeslot,
   FacilityTimeslotAssignment,
   FacilityType,
@@ -16,7 +17,11 @@ import {
   TepTypeBookingCategory,
   TepTypeTruckType,
   TruckTypeBookingCategory,
+  Terminal,
   TerminalGate,
+  TransitPark,
+  Barrier,
+  BarrierSiteLink,
   TruckCapacity,
   TruckLength,
   TruckType,
@@ -25,6 +30,8 @@ import {
 } from '../../database/entities';
 import { AppOptionsController } from './app-options.controller';
 import { AppOptionsService } from './app-options.service';
+import { BarriersController } from './barriers.controller';
+import { BarriersService } from './barriers.service';
 
 @Module({
   imports: [
@@ -45,6 +52,11 @@ import { AppOptionsService } from './app-options.service';
       PaymentType,
       InfractionCategory,
       TerminalGate,
+      Barrier,
+      BarrierSiteLink,
+      Facility,
+      TransitPark,
+      Terminal,
       Location,
       HandheldDevice,
       RfidTag,
@@ -52,7 +64,8 @@ import { AppOptionsService } from './app-options.service';
       User,
     ]),
   ],
-  controllers: [AppOptionsController],
-  providers: [AppOptionsService],
+  controllers: [AppOptionsController, BarriersController],
+  providers: [AppOptionsService, BarriersService],
+  exports: [BarriersService],
 })
 export class AppOptionsModule {}
