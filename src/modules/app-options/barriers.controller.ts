@@ -18,6 +18,7 @@ import {
   ApiBearerAuth,
   ApiConflictResponse,
   ApiCreatedResponse,
+  ApiExtraModels,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
@@ -34,9 +35,12 @@ import {
   UpdateBarrierDto,
 } from './dto/barriers.dto';
 import { ApiBarrierListQuery } from './dto/api-barrier-query.decorator';
+import { BarrierDto } from './dto/barrier.dto';
 import {
   BarrierDeleteResponseDto,
+  BarrierListDataDto,
   BarrierListResponseDto,
+  BarrierPaginationMetaDto,
   BarrierResponseDto,
   BarrierSummaryResponseDto,
   SiteBarriersResponseDto,
@@ -44,6 +48,7 @@ import {
 
 @ApiTags('barriers')
 @ApiBearerAuth('access-token')
+@ApiExtraModels(BarrierDto, BarrierListDataDto, BarrierPaginationMetaDto)
 @Controller('api/barriers')
 @UseGuards(AuthGuard('jwt'), SuperAdminGuard)
 export class BarriersController {

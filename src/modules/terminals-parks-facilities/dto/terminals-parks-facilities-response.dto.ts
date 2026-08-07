@@ -9,7 +9,7 @@ import {
   TERMINAL_TYPES,
   TRANSIT_PARK_TYPES,
 } from './terminals-parks-facilities.dto';
-import { BarrierDto } from '../../app-options/dto/barriers-response.dto';
+import { BarrierDto } from '../../app-options/dto/barrier.dto';
 
 class ResponseEnvelopeDto {
   @ApiProperty({ example: true })

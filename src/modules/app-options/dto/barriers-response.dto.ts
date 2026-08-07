@@ -1,20 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  BARRIER_OPERATIONAL_STATUSES,
-  BARRIER_ROLES,
-  BARRIER_SITE_TYPES,
-  BARRIER_STATUSES,
-} from './barriers.dto';
+import { BarrierDto, BarrierSiteSummaryDto } from './barrier.dto';
+import { BARRIER_SITE_TYPES } from './barriers.dto';
 
-class ResponseEnvelopeDto {
-  @ApiProperty({ example: true })
-  success: boolean;
-
-  @ApiProperty()
-  message: string;
-}
-
-class PaginationMetaDto {
+export class BarrierPaginationMetaDto {
   @ApiProperty()
   total: number;
 
@@ -28,124 +16,42 @@ class PaginationMetaDto {
   total_pages: number;
 }
 
-export class BarrierSiteSummaryDto {
-  @ApiProperty({ enum: BARRIER_SITE_TYPES })
-  type: string;
-
-  @ApiProperty({ format: 'uuid' })
-  id: string;
-
-  @ApiProperty({ example: 'EMOG Bonded Terminal' })
-  name: string;
-
-  @ApiPropertyOptional({
-    nullable: true,
-    description: 'Park/terminal subtype when applicable',
-  })
-  park_type?: string | null;
-}
-
-export class BarrierLinkedSiteDto {
-  @ApiProperty({ format: 'uuid' })
-  link_id: string;
-
-  @ApiProperty({ enum: BARRIER_SITE_TYPES })
-  site_type: string;
-
-  @ApiProperty({ format: 'uuid' })
-  site_id: string;
-
-  @ApiProperty({ enum: BARRIER_ROLES })
-  barrier_role: string;
-
-  @ApiProperty({ type: () => BarrierSiteSummaryDto, nullable: true })
-  site: BarrierSiteSummaryDto | null;
-}
-
-export class BarrierHandheldDto {
-  @ApiProperty({ format: 'uuid' })
-  id: string;
-
-  @ApiProperty({ example: 'HH-APAPA-01' })
-  name: string;
-
-  @ApiProperty({ example: 'ACTIVE' })
-  status: string;
-}
-
-/** Barrier payload returned by catalog and site endpoints. */
-export class BarrierDto {
-  @ApiProperty({ format: 'uuid' })
-  id: string;
-
-  @ApiProperty({ example: 'BR-049' })
-  barrier_id_number: string;
-
-  @ApiProperty({ example: 'Access Control Co.' })
-  service_provider_name: string;
-
-  @ApiProperty({ enum: BARRIER_OPERATIONAL_STATUSES })
-  operational_status: string;
-
-  @ApiProperty({ enum: BARRIER_STATUSES })
-  status: string;
-
-  @ApiPropertyOptional({
-    enum: BARRIER_ROLES,
-    nullable: true,
-    description: 'Present on site-scoped list rows (ENTRY/EXIT for that site)',
-  })
-  barrier_type?: string | null;
-
-  @ApiPropertyOptional({
-    type: () => BarrierSiteSummaryDto,
-    nullable: true,
-    description: 'Facility site when the focused link is a facility',
-  })
-  linked_facility?: BarrierSiteSummaryDto | null;
-
-  @ApiPropertyOptional({
-    type: () => BarrierLinkedSiteDto,
-    nullable: true,
-    description: 'Focused site link when listing by site filters',
-  })
-  linked_site?: BarrierLinkedSiteDto | null;
-
-  @ApiProperty({ type: () => [BarrierLinkedSiteDto] })
-  linked_sites: BarrierLinkedSiteDto[];
-
-  @ApiProperty({ type: () => [BarrierHandheldDto] })
-  linked_handhelds: BarrierHandheldDto[];
-
-  @ApiProperty({ type: () => BarrierHandheldDto, nullable: true })
-  linked_handheld: BarrierHandheldDto | null;
-
-  @ApiProperty()
-  created_at: Date;
-
-  @ApiProperty()
-  updated_at: Date;
-}
-
-class BarrierListDataDto {
+/**
+ * Paginated list body. Kept as a dedicated export (not nested under another
+ * `data` field class graph via inheritance) to avoid NestJS Swagger's false
+ * circular dependency on property key "data".
+ */
+export class BarrierListDataDto {
   @ApiProperty({ type: () => [BarrierDto] })
   data: BarrierDto[];
 
-  @ApiProperty({ type: () => PaginationMetaDto })
-  meta: PaginationMetaDto;
+  @ApiProperty({ type: () => BarrierPaginationMetaDto })
+  meta: BarrierPaginationMetaDto;
 }
 
-export class BarrierResponseDto extends ResponseEnvelopeDto {
+export class BarrierResponseDto {
+  @ApiProperty({ example: true })
+  success: boolean;
+
+  @ApiProperty()
+  message: string;
+
   @ApiProperty({ type: () => BarrierDto })
   data: BarrierDto;
 }
 
-export class BarrierListResponseDto extends ResponseEnvelopeDto {
+export class BarrierListResponseDto {
+  @ApiProperty({ example: true })
+  success: boolean;
+
+  @ApiProperty()
+  message: string;
+
   @ApiProperty({ type: () => BarrierListDataDto })
   data: BarrierListDataDto;
 }
 
-class BarrierSummaryBucketDto {
+export class BarrierSummaryBucketDto {
   @ApiProperty({ example: 12 })
   active: number;
 
@@ -156,7 +62,7 @@ class BarrierSummaryBucketDto {
   total: number;
 }
 
-class BarrierSummaryDto {
+export class BarrierSummaryPayloadDto {
   @ApiProperty({ type: () => BarrierSummaryBucketDto })
   all: BarrierSummaryBucketDto;
 
@@ -167,9 +73,15 @@ class BarrierSummaryDto {
   exit: BarrierSummaryBucketDto;
 }
 
-export class BarrierSummaryResponseDto extends ResponseEnvelopeDto {
-  @ApiProperty({ type: () => BarrierSummaryDto })
-  data: BarrierSummaryDto;
+export class BarrierSummaryResponseDto {
+  @ApiProperty({ example: true })
+  success: boolean;
+
+  @ApiProperty()
+  message: string;
+
+  @ApiProperty({ type: () => BarrierSummaryPayloadDto })
+  data: BarrierSummaryPayloadDto;
 }
 
 export class SiteBarriersDto {
@@ -192,12 +104,32 @@ export class SiteBarriersDto {
   barriers: BarrierDto[];
 }
 
-export class SiteBarriersResponseDto extends ResponseEnvelopeDto {
+export class SiteBarriersResponseDto {
+  @ApiProperty({ example: true })
+  success: boolean;
+
+  @ApiProperty()
+  message: string;
+
   @ApiProperty({ type: () => SiteBarriersDto })
   data: SiteBarriersDto;
 }
 
-export class BarrierDeleteResponseDto extends ResponseEnvelopeDto {
-  @ApiProperty({ nullable: true, example: null })
-  data: null;
+export class BarrierDeleteResponseDto {
+  @ApiProperty({ example: true })
+  success: boolean;
+
+  @ApiProperty({ example: 'Barrier deleted successfully' })
+  message: string;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    type: Object,
+    example: null,
+    description: 'Always null on successful delete',
+  })
+  data?: Record<string, never> | null;
 }
+
+// Re-export shared shape so existing imports from barriers-response keep working.
+export { BarrierDto, BarrierSiteSummaryDto } from './barrier.dto';
