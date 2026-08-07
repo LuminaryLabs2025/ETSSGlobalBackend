@@ -73,8 +73,15 @@ export class BarriersService {
     const limit =
       query.limit && query.limit > 0 ? Math.min(query.limit, 100) : 20;
 
-    // Prototype facility tabs: list one row per barrier↔site link.
-    if (query.site_type || query.site_id || query.park_type || query.barrier_role) {
+    // Prototype tabs: list one row per barrier↔site link.
+    if (
+      query.site_type ||
+      query.site_id ||
+      query.park_type ||
+      query.transit_park_type ||
+      query.terminal_type ||
+      query.barrier_role
+    ) {
       return this.findLinkedRows(query, page, limit);
     }
 
@@ -171,7 +178,13 @@ export class BarriersService {
     const exit = rows.find((r) => r.barrier_role === 'EXIT');
 
     // Catalog-wide summary when no site filter (no links required).
-    if (!query.site_type && !query.site_id && !query.park_type) {
+    if (
+      !query.site_type &&
+      !query.site_id &&
+      !query.park_type &&
+      !query.transit_park_type &&
+      !query.terminal_type
+    ) {
       const catalog = await this.barrierRepository
         .createQueryBuilder('barrier')
         .select('COUNT(*)', 'total')
@@ -307,6 +320,7 @@ export class BarriersService {
   async addSiteLink(barrierId: string, dto: CreateBarrierSiteLinkDto) {
     await this.requireBarrier(barrierId);
     await this.assertSiteExists(dto.site_type, dto.site_id);
+    await this.assertSiteAllowsBarriers(dto.site_type, dto.site_id);
 
     const oppositeRole = dto.barrier_role === 'ENTRY' ? 'EXIT' : 'ENTRY';
     const conflicting = await this.linkRepository.findOne({
@@ -357,6 +371,7 @@ export class BarriersService {
     dto: AssignSiteBarriersDto,
   ) {
     await this.assertSiteExists(siteType, siteId);
+    await this.assertSiteAllowsBarriers(siteType, siteId);
 
     const entryIds = [...new Set(dto.entry_barrier_ids ?? [])];
     const exitIds = [...new Set(dto.exit_barrier_ids ?? [])];
@@ -514,6 +529,41 @@ export class BarriersService {
               .orWhere('facility.name ILIKE :search', { search });
           }),
         );
+      } else if (
+        query.site_type === 'TRANSIT_PARK' ||
+        query.transit_park_type
+      ) {
+        qb.leftJoin(
+          TransitPark,
+          'transitPark',
+          `transitPark.id = link.site_id AND link.site_type = 'TRANSIT_PARK'`,
+        );
+        qb.andWhere(
+          new Brackets((where) => {
+            where
+              .where('barrier.barrier_id_number ILIKE :search', { search })
+              .orWhere('barrier.service_provider_name ILIKE :search', {
+                search,
+              })
+              .orWhere('transitPark.name ILIKE :search', { search });
+          }),
+        );
+      } else if (query.site_type === 'TERMINAL' || query.terminal_type) {
+        qb.leftJoin(
+          Terminal,
+          'terminal',
+          `terminal.id = link.site_id AND link.site_type = 'TERMINAL'`,
+        );
+        qb.andWhere(
+          new Brackets((where) => {
+            where
+              .where('barrier.barrier_id_number ILIKE :search', { search })
+              .orWhere('barrier.service_provider_name ILIKE :search', {
+                search,
+              })
+              .orWhere('terminal.name ILIKE :search', { search });
+          }),
+        );
       } else {
         qb.andWhere(
           new Brackets((where) => {
@@ -572,6 +622,25 @@ export class BarriersService {
       qb.andWhere(
         `link.site_id IN (SELECT f.id FROM facilities f WHERE f.park_type = :parkType AND f.archived_at IS NULL)`,
         { parkType: query.park_type },
+      );
+    }
+    if (query.transit_park_type) {
+      qb.andWhere(`link.site_type = 'TRANSIT_PARK'`);
+      qb.andWhere(
+        `link.site_id IN (SELECT tp.id FROM transit_parks tp WHERE tp.transit_park_type = :transitParkType AND tp.archived_at IS NULL)`,
+        { transitParkType: query.transit_park_type },
+      );
+    }
+    if (query.terminal_type) {
+      qb.andWhere(`link.site_type = 'TERMINAL'`);
+      qb.andWhere(
+        `link.site_id IN (SELECT t.id FROM terminals t WHERE t.terminal_type = :terminalType AND t.archived_at IS NULL)`,
+        { terminalType: query.terminal_type },
+      );
+    } else if (query.site_type === 'TERMINAL') {
+      // Non-port terminals do not have barriers — only return port-terminal links.
+      qb.andWhere(
+        `link.site_id IN (SELECT t.id FROM terminals t WHERE t.terminal_type = 'PORT_TERMINAL' AND t.archived_at IS NULL)`,
       );
     }
   }
@@ -638,6 +707,20 @@ export class BarriersService {
       return;
     }
     throw new BadRequestException('Invalid site_type');
+  }
+
+  /** Non-port terminals do not have entry/exit barriers. */
+  private async assertSiteAllowsBarriers(siteType: string, siteId: string) {
+    if (siteType !== 'TERMINAL') return;
+    const terminal = await this.terminalRepository.findOne({
+      where: { id: siteId },
+    });
+    if (!terminal) throw new NotFoundException('Terminal not found');
+    if (terminal.terminal_type === 'NON_PORT_TERMINAL') {
+      throw new BadRequestException(
+        'Non-port terminals do not have barriers. Only port terminals can be linked to entry/exit barriers.',
+      );
+    }
   }
 
   private async resolveSitesForLinks(

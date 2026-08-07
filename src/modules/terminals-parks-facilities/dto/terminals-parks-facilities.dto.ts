@@ -122,7 +122,8 @@ export class CreateTerminalDto {
     type: [String],
     format: 'uuid',
     description:
-      'Barrier catalog UUIDs to assign as ENTRY gates. Must not overlap exit_barrier_ids for this same site.',
+      'Barrier catalog UUIDs to assign as ENTRY gates. Must not overlap exit_barrier_ids for this same site. ' +
+      'Only valid for PORT_TERMINAL — non-port terminals do not have barriers.',
   })
   @IsOptional()
   @IsArray()
@@ -133,7 +134,8 @@ export class CreateTerminalDto {
     type: [String],
     format: 'uuid',
     description:
-      'Barrier catalog UUIDs to assign as EXIT gates. Must not overlap entry_barrier_ids for this same site.',
+      'Barrier catalog UUIDs to assign as EXIT gates. Must not overlap entry_barrier_ids for this same site. ' +
+      'Only valid for PORT_TERMINAL — non-port terminals do not have barriers.',
   })
   @IsOptional()
   @IsArray()
@@ -193,7 +195,8 @@ export class UpdateTerminalDto {
     type: [String],
     format: 'uuid',
     description:
-      'Barrier catalog UUIDs to assign as ENTRY gates. Must not overlap exit_barrier_ids for this same site.',
+      'Barrier catalog UUIDs to assign as ENTRY gates. Must not overlap exit_barrier_ids for this same site. ' +
+      'Only valid for PORT_TERMINAL — non-port terminals do not have barriers.',
   })
   @IsOptional()
   @IsArray()
@@ -204,7 +207,8 @@ export class UpdateTerminalDto {
     type: [String],
     format: 'uuid',
     description:
-      'Barrier catalog UUIDs to assign as EXIT gates. Must not overlap entry_barrier_ids for this same site.',
+      'Barrier catalog UUIDs to assign as EXIT gates. Must not overlap entry_barrier_ids for this same site. ' +
+      'Only valid for PORT_TERMINAL — non-port terminals do not have barriers.',
   })
   @IsOptional()
   @IsArray()

@@ -31,6 +31,10 @@ export const FACILITY_PARK_TYPES_FOR_BARRIERS = [
   'FISH_VAN_PARK',
 ] as const;
 
+export const TRANSIT_PARK_TYPES_FOR_BARRIERS = ['PREGATE', 'EPT'] as const;
+
+export const TERMINAL_TYPES_FOR_BARRIERS = ['PORT_TERMINAL'] as const;
+
 export class QueryBarriersDto {
   @ApiPropertyOptional({ example: 1, minimum: 1 })
   @IsOptional()
@@ -58,7 +62,7 @@ export class QueryBarriersDto {
   @ApiPropertyOptional({
     enum: BARRIER_SITE_TYPES,
     description:
-      'When set (with optional site_id / park_type / barrier_role), returns one row per barrier↔site link',
+      'When set (with optional site_id / park_type / transit_park_type / terminal_type / barrier_role), returns one row per barrier↔site link',
   })
   @IsOptional()
   @IsIn(BARRIER_SITE_TYPES)
@@ -66,12 +70,33 @@ export class QueryBarriersDto {
 
   @ApiPropertyOptional({
     enum: FACILITY_PARK_TYPES_FOR_BARRIERS,
+    example: 'BONDED_TERMINAL',
     description:
-      'When site_type is FACILITY (or omitted with this filter), scopes to facilities of that park type',
+      'Facility category tab filter (implies site_type=FACILITY). Values: BONDED_TERMINAL, TRUCK_PARK, FISH_VAN_PARK.',
   })
   @IsOptional()
   @IsIn(FACILITY_PARK_TYPES_FOR_BARRIERS)
   park_type?: string;
+
+  @ApiPropertyOptional({
+    enum: TRANSIT_PARK_TYPES_FOR_BARRIERS,
+    example: 'PREGATE',
+    description:
+      'Transit-park category tab filter (implies site_type=TRANSIT_PARK). Values: PREGATE, EPT.',
+  })
+  @IsOptional()
+  @IsIn(TRANSIT_PARK_TYPES_FOR_BARRIERS)
+  transit_park_type?: string;
+
+  @ApiPropertyOptional({
+    enum: TERMINAL_TYPES_FOR_BARRIERS,
+    example: 'PORT_TERMINAL',
+    description:
+      'Port-terminal filter (implies site_type=TERMINAL). Only PORT_TERMINAL is valid — non-port terminals do not have barriers.',
+  })
+  @IsOptional()
+  @IsIn(TERMINAL_TYPES_FOR_BARRIERS)
+  terminal_type?: string;
 
   @ApiPropertyOptional({
     format: 'uuid',
@@ -152,7 +177,11 @@ export class UpdateBarrierDto {
 }
 
 export class CreateBarrierSiteLinkDto {
-  @ApiProperty({ enum: BARRIER_SITE_TYPES })
+  @ApiProperty({
+    enum: BARRIER_SITE_TYPES,
+    description:
+      'Site kind. For TERMINAL, only port terminals accept barrier links (non-port → 400).',
+  })
   @IsIn(BARRIER_SITE_TYPES)
   site_type: string;
 
@@ -160,7 +189,11 @@ export class CreateBarrierSiteLinkDto {
   @IsUUID()
   site_id: string;
 
-  @ApiProperty({ enum: BARRIER_ROLES })
+  @ApiProperty({
+    enum: BARRIER_ROLES,
+    description:
+      'ENTRY or EXIT. Cannot add the opposite role for the same barrier on the same site.',
+  })
   @IsIn(BARRIER_ROLES)
   barrier_role: string;
 }

@@ -40,6 +40,8 @@ Hand this document to the frontend team as the source of truth for the reworked 
 ### Behavioural changes
 
 - Barrier list for the prototype “Bonded Terminals / Truck Parks / Fish-Van Parks” tabs uses **site-link rows** (filter by `site_type=FACILITY&park_type=…`).
+- Pregate / EPT barriers use `transit_park_type=PREGATE` or `transit_park_type=EPT` (implies transit-park links).
+- Port terminal barriers use `terminal_type=PORT_TERMINAL`. Non-port terminals do not have barriers (assignment is rejected; filter only allows `PORT_TERMINAL`).
 - `operational_status` = ONLINE/OFFLINE (partner/live). `status` = ACTIVE/INACTIVE (admin disable).
 - Partner access-control API is **not integrated yet**; `operational_status` is stored and updatable manually until the partner hook is added.
 - `DELETE /api/barriers/:id` returns **409** while the barrier is still linked to a location or has a handheld assigned. Unlink it first, or use `PATCH /api/barriers/:id/disable`.
@@ -155,6 +157,10 @@ interface BarrierRow {
 | Open Barriers > Bonded Terminals | Load KPIs + table | `GET /api/barriers/summary?site_type=FACILITY&park_type=BONDED_TERMINAL` + `GET /api/barriers?site_type=FACILITY&park_type=BONDED_TERMINAL` | Counts + link rows |
 | Switch to Truck Parks tab | Same with park_type | `...&park_type=TRUCK_PARK` | Filtered list |
 | Switch to Fish-Van Parks | Same | `...&park_type=FISH_VAN_PARK` | Filtered list |
+| Pregate barriers tab | Same with transit type | `GET /api/barriers?transit_park_type=PREGATE` (+ summary) | Pregate link rows |
+| EPT barriers tab | Same | `GET /api/barriers?transit_park_type=EPT` | EPT link rows |
+| Port terminal barriers | Same with terminal type | `GET /api/barriers?terminal_type=PORT_TERMINAL` | Port terminal link rows |
+| Non-port terminals | N/A | — | Do not have barriers; linking them returns 400 |
 | Search by name / barrier ID | Query param | `GET /api/barriers?...&search=` | Filtered rows |
 | Add New Barrier → Create | Submit modal | `POST /api/barriers` | New barrier in catalog |
 | View Barrier Details | Open detail | `GET /api/barriers/:id` | Full barrier + linked_sites + handhelds |

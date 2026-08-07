@@ -12,7 +12,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { SuperAdminGuard } from '../../common/guards';
 import { TerminalsParksFacilitiesService } from './terminals-parks-facilities.service';
 import {
@@ -51,6 +51,12 @@ export class TerminalsParksFacilitiesController {
 
   // Terminals
   @Post('terminals')
+  @ApiOperation({
+    summary: 'Create a terminal',
+    description:
+      'Optional `entry_barrier_ids` / `exit_barrier_ids` apply only to PORT_TERMINAL. ' +
+      'Non-port terminals cannot be linked to barriers (400).',
+  })
   @ApiOkResponse({ type: TerminalResponseDto })
   async createTerminal(@Body() dto: CreateTerminalDto) {
     return this.ok(
@@ -87,6 +93,12 @@ export class TerminalsParksFacilitiesController {
   }
 
   @Put('terminals/:id')
+  @ApiOperation({
+    summary: 'Update a terminal',
+    description:
+      'Optional `entry_barrier_ids` / `exit_barrier_ids` replace ENTRY/EXIT links for port terminals only. ' +
+      'Non-port terminals cannot be linked to barriers (400).',
+  })
   @ApiOkResponse({ type: TerminalResponseDto })
   async updateTerminal(
     @Param('id', ParseUUIDPipe) id: string,
