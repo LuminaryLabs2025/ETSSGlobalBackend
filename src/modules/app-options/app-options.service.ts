@@ -882,7 +882,7 @@ export class AppOptionsService {
     if (dto.user_id) {
       await this.requireEntity(this.userRepository, dto.user_id, 'Linked user not found');
     }
-    return this.createEntity(
+    const created = await this.createEntity(
       this.handheldDeviceRepository,
       {
         ...dto,
@@ -892,6 +892,7 @@ export class AppOptionsService {
       },
       'Handheld device already exists',
     );
+    return this.findHandheldDevice(created.id);
   }
 
   async findHandheldDevices(query: QueryAppOptionsDto) {
@@ -935,13 +936,14 @@ export class AppOptionsService {
     if (dto.user_id) {
       await this.requireEntity(this.userRepository, dto.user_id, 'Linked user not found');
     }
-    return this.updateEntity(
+    await this.updateEntity(
       this.handheldDeviceRepository,
       id,
       dto,
       'Handheld device not found',
       'Handheld device already exists',
     );
+    return this.findHandheldDevice(id);
   }
 
   async deleteHandheldDevice(id: string) {

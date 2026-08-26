@@ -1,5 +1,6 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
+  IsBoolean,
   IsDateString,
   IsIn,
   IsInt,
@@ -65,6 +66,32 @@ export class QueryBookingsDto {
   @IsOptional()
   @IsIn(BOOKING_STATUSES)
   status?: (typeof BOOKING_STATUSES)[number];
+
+  /** Exact match filters (frontend BookingsListParams). */
+  @IsOptional()
+  @IsString()
+  booking_id?: string;
+
+  @IsOptional()
+  @IsString()
+  journey_code?: string;
+
+  @IsOptional()
+  @IsString()
+  truck_plate_number?: string;
+
+  @IsOptional()
+  @IsString()
+  driver_name?: string;
+
+  /**
+   * When true, only bookings with exceptions and/or a truck whose
+   * registration_status is FLAGGED (matches frontend Flagged tab).
+   */
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true' || value === '1')
+  @IsBoolean()
+  flagged?: boolean;
 
   @IsOptional()
   @IsString()

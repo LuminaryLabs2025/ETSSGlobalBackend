@@ -69,6 +69,7 @@ export class BarriersService {
   }
 
   async findAll(query: QueryBarriersDto) {
+    query = this.normalizeBarrierQuery(query);
     const page = query.page && query.page > 0 ? query.page : 1;
     const limit =
       query.limit && query.limit > 0 ? Math.min(query.limit, 100) : 20;
@@ -132,6 +133,7 @@ export class BarriersService {
   }
 
   async summary(query: QueryBarriersDto) {
+    query = this.normalizeBarrierQuery(query);
     // Counts for prototype KPI cards; scoped by same filters as the list tabs.
     const buildLinkQuery = async () => {
       const qb = this.linkRepository
@@ -844,6 +846,14 @@ export class BarriersService {
         : null,
       created_at: barrier.created_at,
       updated_at: barrier.updated_at,
+    };
+  }
+
+  /** Frontend sends `barrier_type`; keep `barrier_role` as the canonical filter. */
+  private normalizeBarrierQuery(query: QueryBarriersDto): QueryBarriersDto {
+    return {
+      ...query,
+      barrier_role: query.barrier_role ?? query.barrier_type,
     };
   }
 

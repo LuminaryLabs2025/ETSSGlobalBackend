@@ -42,6 +42,9 @@ class BookingTimelineEntryDto {
 
   @ApiPropertyOptional({ example: 'Booking created.' })
   notes?: string;
+
+  @ApiPropertyOptional()
+  is_latest?: boolean;
 }
 
 class BookingExceptionDto {
@@ -75,6 +78,23 @@ class TowTruckRequestDto {
   status: string;
 }
 
+class BookingTruckPreviewDto {
+  @ApiPropertyOptional()
+  truck_type?: string;
+
+  @ApiPropertyOptional()
+  brand?: string;
+
+  @ApiPropertyOptional()
+  model?: string;
+
+  @ApiPropertyOptional()
+  mss_verification_number?: string;
+
+  @ApiPropertyOptional()
+  truck_status?: string;
+}
+
 export class BookingDto {
   @ApiProperty({ format: 'uuid' })
   id: string;
@@ -90,6 +110,14 @@ export class BookingDto {
 
   @ApiProperty({ example: 'White', nullable: true })
   truck_color: string | null;
+
+  @ApiPropertyOptional({ type: () => BookingTruckPreviewDto })
+  truck?: BookingTruckPreviewDto;
+
+  @ApiPropertyOptional({
+    description: 'Operational truck_status from linked truck record (by plate)',
+  })
+  current_truck_status?: string | null;
 
   @ApiProperty({ example: 'Chukwudi Nwosu' })
   driver_name: string;
@@ -185,6 +213,12 @@ class BookingsSummaryDto {
 
   @ApiProperty()
   expired: number;
+
+  @ApiProperty({
+    description:
+      'Bookings with at least one exception, or linked truck registration_status = FLAGGED',
+  })
+  flagged: number;
 }
 
 export class BookingsSummaryResponseDto extends ResponseEnvelopeDto {

@@ -84,6 +84,14 @@ export function ApiBarrierListQuery() {
       description: 'ENTRY or EXIT role on the linked site',
     }),
     ApiQuery({
+      name: 'barrier_type',
+      required: false,
+      enum: BARRIER_ROLES,
+      description:
+        'Frontend alias for barrier_role (Barriers page sends barrier_type). ' +
+        'When both are present, barrier_role wins.',
+    }),
+    ApiQuery({
       name: 'operational_status',
       required: false,
       enum: BARRIER_OPERATIONAL_STATUSES,

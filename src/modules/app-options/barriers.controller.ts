@@ -183,7 +183,7 @@ export class BarriersController {
     summary: 'List barriers',
     description:
       '**Catalog mode** (default): one row per barrier.\n\n' +
-      '**Link / tab mode** (when any of site_type, site_id, park_type, transit_park_type, terminal_type, or barrier_role is set): ' +
+      '**Link / tab mode** (when any of site_type, site_id, park_type, transit_park_type, terminal_type, barrier_role, or barrier_type is set): ' +
       'one row per barrier↔site link.\n\n' +
       'Category tab examples:\n' +
       '- `?park_type=BONDED_TERMINAL` — bonded facility barriers\n' +

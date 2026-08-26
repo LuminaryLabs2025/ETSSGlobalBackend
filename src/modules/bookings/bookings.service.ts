@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository, SelectQueryBuilder } from 'typeorm';
-import { Booking, BookingTimelineEntry } from '../../database/entities';
+import { Booking, BookingTimelineEntry, Truck } from '../../database/entities';
 import {
   applySearch,
   paginateQueryBuilder,
@@ -19,6 +19,8 @@ export class BookingsService {
     private readonly bookingRepository: Repository<Booking>,
     @InjectRepository(BookingTimelineEntry)
     private readonly timelineRepository: Repository<BookingTimelineEntry>,
+    @InjectRepository(Truck)
+    private readonly truckRepository: Repository<Truck>,
   ) {}
 
   async findBookings(query: QueryBookingsDto) {
@@ -35,8 +37,13 @@ export class BookingsService {
       query.limit ?? 20,
     );
     const hydrated = await this.hydrateBookings(result.data);
+    const trucksByPlate = await this.loadTrucksByPlate(
+      hydrated.map((b) => b.truck_plate_number),
+    );
     return {
-      data: hydrated.map((b) => this.mapBookingResponse(b)),
+      data: hydrated.map((b) =>
+        this.mapBookingResponse(b, trucksByPlate.get(b.truck_plate_number)),
+      ),
       meta: result.meta,
     };
   }
@@ -76,8 +83,13 @@ export class BookingsService {
       query.limit ?? 20,
     );
     const hydrated = await this.hydrateBookings(result.data);
+    const trucksByPlate = await this.loadTrucksByPlate(
+      hydrated.map((b) => b.truck_plate_number),
+    );
     return {
-      data: hydrated.map((b) => this.mapBookingResponse(b)),
+      data: hydrated.map((b) =>
+        this.mapBookingResponse(b, trucksByPlate.get(b.truck_plate_number)),
+      ),
       meta: result.meta,
     };
   }
@@ -96,6 +108,10 @@ export class BookingsService {
         'cancelled',
       )
       .addSelect(`COUNT(*) FILTER (WHERE row.status = 'EXPIRED')`, 'expired')
+      .addSelect(
+        `COUNT(*) FILTER (WHERE ${this.flaggedExistsSql('row')})`,
+        'flagged',
+      )
       .getRawOne<Record<string, string>>();
 
     return {
@@ -104,6 +120,7 @@ export class BookingsService {
       completed: Number(stats?.completed ?? 0),
       cancelled: Number(stats?.cancelled ?? 0),
       expired: Number(stats?.expired ?? 0),
+      flagged: Number(stats?.flagged ?? 0),
     };
   }
 
@@ -116,7 +133,13 @@ export class BookingsService {
       throw new NotFoundException('Booking not found');
     }
     this.sortRelations(booking);
-    return this.mapBookingResponse(booking);
+    const trucksByPlate = await this.loadTrucksByPlate([
+      booking.truck_plate_number,
+    ]);
+    return this.mapBookingResponse(
+      booking,
+      trucksByPlate.get(booking.truck_plate_number),
+    );
   }
 
   async removeFromManifest(id: string, user?: ActorUser) {
@@ -202,7 +225,7 @@ export class BookingsService {
     const headers = [
       'Booking ID',
       'Journey Code',
-      'Plate Number',
+      'Truck Plate',
       'Driver',
       'Transporter',
       'Terminal',
@@ -240,6 +263,31 @@ export class BookingsService {
   ) {
     if (query.status) {
       qb.andWhere('row.status = :status', { status: query.status });
+    }
+
+    if (query.booking_id?.trim()) {
+      qb.andWhere('row.booking_id ILIKE :bookingId', {
+        bookingId: query.booking_id.trim(),
+      });
+    }
+    if (query.journey_code?.trim()) {
+      qb.andWhere('row.journey_code ILIKE :journeyCode', {
+        journeyCode: query.journey_code.trim(),
+      });
+    }
+    if (query.truck_plate_number?.trim()) {
+      qb.andWhere('row.truck_plate_number ILIKE :plate', {
+        plate: query.truck_plate_number.trim(),
+      });
+    }
+    if (query.driver_name?.trim()) {
+      qb.andWhere('row.driver_name ILIKE :driverName', {
+        driverName: `%${query.driver_name.trim()}%`,
+      });
+    }
+
+    if (query.flagged === true) {
+      qb.andWhere(this.flaggedExistsSql('row'));
     }
 
     applySearch(
@@ -287,6 +335,21 @@ export class BookingsService {
     }
   }
 
+  /** Matches frontend `isFlaggedBooking` intent (exceptions + flagged trucks). */
+  private flaggedExistsSql(alias: string): string {
+    return `(
+      EXISTS (
+        SELECT 1 FROM booking_exceptions be
+        WHERE be.booking_id = ${alias}.id
+      )
+      OR EXISTS (
+        SELECT 1 FROM trucks t
+        WHERE t.plate_number = ${alias}.truck_plate_number
+          AND t.registration_status = 'FLAGGED'
+      )
+    )`;
+  }
+
   private async hydrateBookings(bookings: Booking[]): Promise<Booking[]> {
     if (!bookings.length) return [];
     const ids = bookings.map((b) => b.id);
@@ -299,6 +362,18 @@ export class BookingsService {
       .map((b) => byId.get(b.id))
       .filter((b): b is Booking => Boolean(b))
       .map((b) => this.sortRelations(b));
+  }
+
+  private async loadTrucksByPlate(
+    plates: string[],
+  ): Promise<Map<string, Truck>> {
+    const unique = [...new Set(plates.filter(Boolean))];
+    if (!unique.length) return new Map();
+    const trucks = await this.truckRepository.find({
+      where: { plate_number: In(unique) },
+      relations: ['truck_type'],
+    });
+    return new Map(trucks.map((t) => [t.plate_number, t]));
   }
 
   private sortRelations(booking: Booking): Booking {
@@ -331,7 +406,10 @@ export class BookingsService {
     return `${user.first_name} ${user.last_name ?? ''}`.trim();
   }
 
-  mapBookingResponse(booking: Booking) {
+  mapBookingResponse(booking: Booking, truck?: Truck) {
+    const timeline = booking.timeline ?? [];
+    const latestId = timeline.length ? timeline[timeline.length - 1].id : null;
+
     const response: Record<string, unknown> = {
       id: booking.id,
       booking_id: booking.booking_id,
@@ -351,10 +429,11 @@ export class BookingsService {
       truck_booked_by: booking.truck_booked_by,
       truck_owned_by: booking.truck_owned_by,
       manifest_status: booking.manifest_status,
-      timeline: (booking.timeline ?? []).map((entry) => ({
+      timeline: timeline.map((entry) => ({
         id: entry.id,
         status: entry.status,
         timestamp: entry.created_at,
+        is_latest: entry.id === latestId,
         ...(entry.performed_by ? { performed_by: entry.performed_by } : {}),
         ...(entry.notes ? { notes: entry.notes } : {}),
       })),
@@ -365,6 +444,21 @@ export class BookingsService {
         timestamp: ex.created_at,
       })),
     };
+
+    if (truck) {
+      response.truck = {
+        truck_type: truck.truck_type?.name ?? undefined,
+        brand: truck.brand ?? undefined,
+        model: truck.model ?? undefined,
+        mss_verification_number: truck.mss_verification_number ?? undefined,
+        truck_status: truck.truck_status ?? undefined,
+      };
+      if (truck.truck_status) {
+        response.current_truck_status = truck.truck_status;
+      } else if (truck.registration_status === 'FLAGGED') {
+        response.current_truck_status = 'FLAGGED';
+      }
+    }
 
     if (booking.completed_at) {
       response.completed_at = booking.completed_at;

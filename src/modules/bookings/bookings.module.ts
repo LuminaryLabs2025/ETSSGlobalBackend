@@ -1,12 +1,12 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Booking, BookingTimelineEntry } from '../../database/entities';
+import { Booking, BookingTimelineEntry, Truck } from '../../database/entities';
 import { BookingsController } from './bookings.controller';
 import { BookingsService } from './bookings.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Booking, BookingTimelineEntry]),
+    TypeOrmModule.forFeature([Booking, BookingTimelineEntry, Truck]),
   ],
   controllers: [BookingsController],
   providers: [BookingsService],

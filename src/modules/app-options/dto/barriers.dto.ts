@@ -106,10 +106,23 @@ export class QueryBarriersDto {
   @IsUUID()
   site_id?: string;
 
-  @ApiPropertyOptional({ enum: BARRIER_ROLES })
+  @ApiPropertyOptional({
+    enum: BARRIER_ROLES,
+    description: 'ENTRY or EXIT role on the linked site',
+  })
   @IsOptional()
   @IsIn(BARRIER_ROLES)
   barrier_role?: string;
+
+  @ApiPropertyOptional({
+    enum: BARRIER_ROLES,
+    description:
+      'Frontend alias for `barrier_role` (Barriers page sends `barrier_type`). ' +
+      'When both are present, `barrier_role` wins.',
+  })
+  @IsOptional()
+  @IsIn(BARRIER_ROLES)
+  barrier_type?: string;
 
   @ApiPropertyOptional({ enum: BARRIER_OPERATIONAL_STATUSES })
   @IsOptional()

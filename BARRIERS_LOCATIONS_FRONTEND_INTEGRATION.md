@@ -42,10 +42,13 @@ Hand this document to the frontend team as the source of truth for the reworked 
 - Barrier list for the prototype “Bonded Terminals / Truck Parks / Fish-Van Parks” tabs uses **site-link rows** (filter by `site_type=FACILITY&park_type=…`).
 - Pregate / EPT barriers use `transit_park_type=PREGATE` or `transit_park_type=EPT` (implies transit-park links).
 - Port terminal barriers use `terminal_type=PORT_TERMINAL`. Non-port terminals do not have barriers (assignment is rejected; filter only allows `PORT_TERMINAL`).
+- ENTRY/EXIT filter: backend accepts both `barrier_role` and frontend alias **`barrier_type`** (`ENTRY` | `EXIT`). Prefer documenting `barrier_type` if the Barriers page continues to send that name.
 - `operational_status` = ONLINE/OFFLINE (partner/live). `status` = ACTIVE/INACTIVE (admin disable).
 - Partner access-control API is **not integrated yet**; `operational_status` is stored and updatable manually until the partner hook is added.
 - `DELETE /api/barriers/:id` returns **409** while the barrier is still linked to a location or has a handheld assigned. Unlink it first, or use `PATCH /api/barriers/:id/disable`.
 - Summary counts are **distinct barriers**, not links, so a barrier serving several sites is counted once per card.
+
+For a full FE↔BE gap register (including bookings), see `FRONTEND_BACKEND_GAP_ANALYSIS.md`.
 
 ---
 
