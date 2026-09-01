@@ -4,6 +4,7 @@ import { In, Repository } from 'typeorm';
 import { Company, Driver, DriverFlag, User } from '../../database/entities';
 import {
   CreateDriverDto,
+  QueryBookingOptionsDto,
   QueryDriversDto,
   ReasonDto,
 } from './dto/operations.dto';
@@ -94,6 +95,75 @@ export class DriversService {
     return {
       data: result.data.map((d) => mapDriverResponse(d, flags.get(d.id))),
       meta: result.meta,
+    };
+  }
+
+  /**
+   * "Mine vs public" driver picker for SuperAdmin booking-creation forms.
+   * Mine = registered to the given transporter company; public = visibility
+   * PUBLIC and not already owned by that company. Excludes disabled/
+   * archived drivers and drivers already on duty elsewhere.
+   */
+  async findDriverBookingOptions(query: QueryBookingOptionsDto) {
+    const eligible = `row.verification_status NOT IN ('DISABLED', 'ARCHIVED', 'FLAGGED') AND (row.operational_status IS NULL OR row.operational_status NOT IN (:...ineligible))`;
+    const params = {
+      ineligible: [
+        'ON_TRIP',
+        'IN_FACILITY',
+        'IN_PREGATE',
+        'IN_TERMINAL',
+        'OFF_DUTY',
+        'SUSPENDED',
+      ],
+    };
+
+    let mine: Driver[] = [];
+    if (query.transporter_company_id) {
+      const mineQb = this.driverRepository
+        .createQueryBuilder('row')
+        .where(eligible, params)
+        .andWhere('row.transporter_company_id = :cid', {
+          cid: query.transporter_company_id,
+        });
+      applySearch(
+        mineQb,
+        'row',
+        ['first_name', 'last_name', 'license_number'],
+        query.search,
+      );
+      mine = await mineQb.orderBy('row.first_name', 'ASC').getMany();
+    }
+
+    const publicQb = this.driverRepository
+      .createQueryBuilder('row')
+      .where(eligible, params)
+      .andWhere(`row.visibility = 'PUBLIC'`);
+    if (query.transporter_company_id) {
+      publicQb.andWhere(
+        '(row.transporter_company_id IS NULL OR row.transporter_company_id != :cid)',
+        { cid: query.transporter_company_id },
+      );
+    }
+    applySearch(
+      publicQb,
+      'row',
+      ['first_name', 'last_name', 'license_number'],
+      query.search,
+    );
+    const pub = await publicQb.orderBy('row.first_name', 'ASC').getMany();
+
+    const label = (d: Driver) => `${d.first_name} ${d.last_name}`.trim();
+    return {
+      mine: mine.map((d) => ({
+        value: d.id,
+        label: label(d),
+        group: 'mine' as const,
+      })),
+      public: pub.map((d) => ({
+        value: d.id,
+        label: label(d),
+        group: 'public' as const,
+      })),
     };
   }
 

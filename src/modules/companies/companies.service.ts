@@ -3,7 +3,9 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Company } from '../../database/entities/company.entity';
 import { UpdateCompanyDto } from './dto/update-company.dto';
+import { QueryCompaniesDto } from './dto/query-companies.dto';
 import { MARITIME_ETSS_COMPANY_NAME } from '../../common/constants/companies';
+import { applySearch } from '../../common/utils/query-helpers';
 
 @Injectable()
 export class CompaniesService {
@@ -31,11 +33,17 @@ export class CompaniesService {
     return company;
   }
 
-  async findAll(): Promise<Company[]> {
-    return this.companyRepository.find({
-      relations: ['users', 'user_type'],
-      order: { created_at: 'DESC' },
-    });
+  async findAll(query: QueryCompaniesDto = {}): Promise<Company[]> {
+    const qb = this.companyRepository
+      .createQueryBuilder('row')
+      .leftJoinAndSelect('row.users', 'users')
+      .leftJoinAndSelect('row.user_type', 'user_type')
+      .orderBy('row.created_at', 'DESC');
+    applySearch(qb, 'row', ['name', 'email', 'phone'], query.search);
+    if (query.is_active !== undefined) {
+      qb.andWhere('row.is_active = :isActive', { isActive: query.is_active });
+    }
+    return qb.getMany();
   }
 
   async findOne(id: string): Promise<Company> {

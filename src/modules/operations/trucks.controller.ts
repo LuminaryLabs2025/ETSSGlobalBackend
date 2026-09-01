@@ -24,6 +24,7 @@ import { TrucksService } from './trucks.service';
 import {
   BulkCreateTrucksDto,
   CreateTruckDto,
+  QueryBookingOptionsDto,
   QueryTrucksDto,
   ReasonDto,
 } from './dto/operations.dto';
@@ -71,6 +72,18 @@ export class TrucksController {
     return this.ok(
       'Trucks fetched successfully',
       await this.trucksService.findTrucks(query),
+    );
+  }
+
+  @Get('booking-options')
+  @ApiOkResponse({
+    description:
+      '"Mine" (by transporter_company_id) vs "Public" truck options for booking-creation forms',
+  })
+  async bookingOptions(@Query() query: QueryBookingOptionsDto) {
+    return this.ok(
+      'Truck booking options fetched successfully',
+      await this.trucksService.findTruckBookingOptions(query),
     );
   }
 

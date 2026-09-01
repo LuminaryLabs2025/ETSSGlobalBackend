@@ -95,6 +95,56 @@ class BookingTruckPreviewDto {
   truck_status?: string;
 }
 
+class BookingSiteRefDto {
+  @ApiProperty({ format: 'uuid' })
+  id: string;
+
+  @ApiProperty()
+  name: string;
+
+  @ApiPropertyOptional()
+  code?: string;
+
+  @ApiPropertyOptional()
+  location?: string;
+
+  @ApiPropertyOptional()
+  type?: string;
+}
+
+class BookingNamedRefDto {
+  @ApiProperty({ format: 'uuid' })
+  id: string;
+
+  @ApiProperty()
+  name: string;
+}
+
+class BookingTimeslotRefDto {
+  @ApiProperty({ format: 'uuid' })
+  id: string;
+
+  @ApiProperty()
+  name: string;
+
+  @ApiProperty()
+  start_time: string;
+
+  @ApiProperty()
+  end_time: string;
+}
+
+class BookingFeeBreakdownDto {
+  @ApiProperty()
+  fee_configured: boolean;
+
+  @ApiProperty()
+  total: number;
+
+  @ApiProperty({ type: () => [Object] })
+  lines: { name: string; amount: number }[];
+}
+
 export class BookingDto {
   @ApiProperty({ format: 'uuid' })
   id: string;
@@ -178,6 +228,101 @@ export class BookingDto {
 
   @ApiProperty({ type: () => [BookingExceptionDto] })
   exceptions: BookingExceptionDto[];
+
+  // ── SuperAdmin booking-creation flows ──
+  @ApiPropertyOptional({
+    enum: ['BONDED_TERMINAL', 'TRUCK_PARK', 'FISH_VAN_PARK', 'EPT'],
+    nullable: true,
+  })
+  booking_type?: string | null;
+
+  @ApiPropertyOptional({ type: () => BookingSiteRefDto })
+  facility?: BookingSiteRefDto;
+
+  @ApiPropertyOptional({ type: () => BookingSiteRefDto })
+  transit_park?: BookingSiteRefDto;
+
+  @ApiPropertyOptional({
+    type: () => BookingSiteRefDto,
+    description:
+      'Set by PATCH :id/mark-in-pregate — which Pregate the truck is transiting.',
+  })
+  pregate_transit_park?: BookingSiteRefDto;
+
+  @ApiPropertyOptional({ type: () => BookingSiteRefDto })
+  terminal?: BookingSiteRefDto;
+
+  @ApiPropertyOptional({ type: () => BookingNamedRefDto })
+  booking_category_ref?: BookingNamedRefDto;
+
+  @ApiPropertyOptional({ type: () => BookingTimeslotRefDto })
+  expected_arrival_time_slot?: BookingTimeslotRefDto;
+
+  @ApiPropertyOptional()
+  expected_arrival_date?: string | null;
+
+  @ApiPropertyOptional()
+  expected_arrival_time?: string | null;
+
+  @ApiPropertyOptional({
+    enum: ['AGRO_EXPORT', 'MANUFACTURED_EXPORT', 'OTHERS'],
+  })
+  export_type?: string | null;
+
+  @ApiPropertyOptional({
+    enum: [
+      'LOADED_EXPORT_DELIVERY',
+      'EMPTY_CONTAINER_DELIVERY',
+      'VERIFIED_EXPORT_COLLECTION',
+      'LOADED_DELIVERY_WITH_COLLECTION',
+    ],
+  })
+  ept_operation_type?: string | null;
+
+  @ApiPropertyOptional()
+  gate_pass_number?: string | null;
+
+  @ApiProperty({ enum: ['HIGH', 'MEDIUM', 'LOW'] })
+  priority_level: string;
+
+  @ApiProperty()
+  priority_rank: number;
+
+  @ApiPropertyOptional()
+  matched_at?: Date | null;
+
+  @ApiPropertyOptional()
+  in_facility_at?: Date | null;
+
+  @ApiPropertyOptional()
+  in_pregate_at?: Date | null;
+
+  @ApiPropertyOptional()
+  gtg_facility_at?: Date | null;
+
+  @ApiPropertyOptional()
+  gtg_pregate_at?: Date | null;
+
+  @ApiProperty({ enum: ['PENDING', 'PAID', 'FAILED'] })
+  payment_status: string;
+
+  @ApiPropertyOptional({ enum: ['WALLET', 'PAYSTACK'] })
+  payment_method?: string | null;
+
+  @ApiPropertyOptional()
+  paid_at?: Date;
+
+  @ApiPropertyOptional()
+  confirmed_at?: Date;
+
+  @ApiPropertyOptional()
+  terms_accepted_at?: Date;
+
+  @ApiPropertyOptional({ type: () => BookingFeeBreakdownDto })
+  fee?: BookingFeeBreakdownDto;
+
+  @ApiPropertyOptional()
+  queue_position?: number;
 }
 
 class BookingListDataDto {

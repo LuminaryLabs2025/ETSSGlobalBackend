@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import {
@@ -13,6 +17,7 @@ import {
 import {
   BulkCreateTrucksDto,
   CreateTruckDto,
+  QueryBookingOptionsDto,
   QueryTrucksDto,
   ReasonDto,
 } from './dto/operations.dto';
@@ -25,6 +30,17 @@ import {
   saveWithConflict,
   toCsv,
 } from './operations-shared';
+
+/** Trucks mid-trip or already committed to another booking aren't offered. */
+const INELIGIBLE_TRUCK_STATUSES = [
+  'ON_TRIP',
+  'IN_FACILITY',
+  'MATCHED',
+  'GTG_FACILITY',
+  'IN_PREGATE',
+  'GTG_PREGATE',
+  'IN_TERMINAL',
+];
 
 @Injectable()
 export class TrucksService {
@@ -115,6 +131,55 @@ export class TrucksService {
     };
   }
 
+  /**
+   * "Mine vs public" truck picker for SuperAdmin booking-creation forms.
+   * Mine = owned by the given transporter company; public = visibility
+   * PUBLIC and not already owned by that company. Excludes disabled/
+   * archived trucks and trucks already mid-trip (matched, in-facility, etc.).
+   */
+  async findTruckBookingOptions(query: QueryBookingOptionsDto) {
+    const eligible = `row.registration_status NOT IN ('DISABLED', 'ARCHIVED', 'FLAGGED') AND (row.truck_status IS NULL OR row.truck_status NOT IN (:...ineligible))`;
+    const params = { ineligible: INELIGIBLE_TRUCK_STATUSES };
+
+    let mine: Truck[] = [];
+    if (query.transporter_company_id) {
+      const mineQb = this.truckRepository
+        .createQueryBuilder('row')
+        .where(eligible, params)
+        .andWhere('row.transporter_company_id = :cid', {
+          cid: query.transporter_company_id,
+        });
+      applySearch(mineQb, 'row', ['plate_number'], query.search);
+      mine = await mineQb.orderBy('row.plate_number', 'ASC').getMany();
+    }
+
+    const publicQb = this.truckRepository
+      .createQueryBuilder('row')
+      .where(eligible, params)
+      .andWhere(`row.visibility = 'PUBLIC'`);
+    if (query.transporter_company_id) {
+      publicQb.andWhere(
+        '(row.transporter_company_id IS NULL OR row.transporter_company_id != :cid)',
+        { cid: query.transporter_company_id },
+      );
+    }
+    applySearch(publicQb, 'row', ['plate_number'], query.search);
+    const pub = await publicQb.orderBy('row.plate_number', 'ASC').getMany();
+
+    return {
+      mine: mine.map((t) => ({
+        value: t.id,
+        label: t.plate_number,
+        group: 'mine' as const,
+      })),
+      public: pub.map((t) => ({
+        value: t.id,
+        label: t.plate_number,
+        group: 'public' as const,
+      })),
+    };
+  }
+
   async trucksSummary() {
     const stats = await this.truckRepository
       .createQueryBuilder('row')
@@ -184,7 +249,10 @@ export class TrucksService {
       dto.truck_type_id,
       'Truck type not found',
     );
-    await this.assertLengthBelongsToType(dto.truck_length_id, dto.truck_type_id);
+    await this.assertLengthBelongsToType(
+      dto.truck_length_id,
+      dto.truck_type_id,
+    );
     await this.assertCapacityBelongsToType(
       dto.truck_capacity_id,
       dto.truck_type_id,

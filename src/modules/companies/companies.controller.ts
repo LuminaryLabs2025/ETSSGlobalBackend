@@ -6,11 +6,13 @@ import {
   Body,
   Param,
   ParseUUIDPipe,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { CompaniesService } from './companies.service';
 import { UpdateCompanyDto } from './dto/update-company.dto';
+import { QueryCompaniesDto } from './dto/query-companies.dto';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { Permissions } from '../../common/decorators/permissions.decorator';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
@@ -24,8 +26,8 @@ export class CompaniesController {
 
   @Get()
   @Permissions('manage_companies')
-  findAll() {
-    return this.companiesService.findAll();
+  findAll(@Query() query: QueryCompaniesDto) {
+    return this.companiesService.findAll(query);
   }
 
   @Get(':id')

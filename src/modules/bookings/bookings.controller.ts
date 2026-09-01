@@ -1,9 +1,11 @@
 import {
+  Body,
   Controller,
   Get,
   Param,
   ParseUUIDPipe,
   Patch,
+  Post,
   Query,
   Res,
   UseGuards,
@@ -21,10 +23,22 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { BookingsService } from './bookings.service';
 import { QueryBookingsDto, QueryManifestDto } from './dto/bookings.dto';
 import {
+  ConfirmPaymentDto,
+  CreateEptBookingDto,
+  CreateFacilityBookingDto,
+  CreateFishBookingDto,
+} from './dto/create-booking.dto';
+import {
   BookingListResponseDto,
   BookingResponseDto,
   BookingsSummaryResponseDto,
 } from './dto/bookings-response.dto';
+
+type CurrentUserPayload = {
+  id: string;
+  first_name: string;
+  last_name: string;
+};
 
 @ApiTags('bookings')
 @ApiBearerAuth('access-token')
@@ -117,6 +131,199 @@ export class BookingsController {
     return this.ok(
       'Booking cancelled successfully',
       await this.bookingsService.cancelBooking(id, user),
+    );
+  }
+
+  // ── SuperAdmin booking-creation flows ──
+
+  @Post('bonded-terminal/preview')
+  @ApiOkResponse({ description: 'Computed preview — nothing persisted' })
+  async previewBondedTerminal(@Body() dto: CreateFacilityBookingDto) {
+    return this.ok(
+      'Bonded Terminal booking preview computed',
+      await this.bookingsService.previewBondedTerminalBooking(dto),
+    );
+  }
+
+  @Post('bonded-terminal')
+  @ApiOkResponse({ type: BookingResponseDto })
+  async createBondedTerminal(
+    @Body() dto: CreateFacilityBookingDto,
+    @CurrentUser() user: CurrentUserPayload,
+  ) {
+    return this.ok(
+      'Bonded Terminal booking created successfully',
+      await this.bookingsService.createBondedTerminalBooking(
+        dto,
+        user,
+        user?.id,
+      ),
+    );
+  }
+
+  @Post('truck-park/preview')
+  @ApiOkResponse({ description: 'Computed preview — nothing persisted' })
+  async previewTruckPark(@Body() dto: CreateFacilityBookingDto) {
+    return this.ok(
+      'Truck Park booking preview computed',
+      await this.bookingsService.previewTruckParkBooking(dto),
+    );
+  }
+
+  @Post('truck-park')
+  @ApiOkResponse({ type: BookingResponseDto })
+  async createTruckPark(
+    @Body() dto: CreateFacilityBookingDto,
+    @CurrentUser() user: CurrentUserPayload,
+  ) {
+    return this.ok(
+      'Truck Park booking created successfully',
+      await this.bookingsService.createTruckParkBooking(dto, user, user?.id),
+    );
+  }
+
+  @Post('fish/preview')
+  @ApiOkResponse({ description: 'Computed preview — nothing persisted' })
+  async previewFish(@Body() dto: CreateFishBookingDto) {
+    return this.ok(
+      'Fish booking preview computed',
+      await this.bookingsService.previewFishBooking(dto),
+    );
+  }
+
+  @Post('fish')
+  @ApiOkResponse({ type: BookingResponseDto })
+  async createFish(
+    @Body() dto: CreateFishBookingDto,
+    @CurrentUser() user: CurrentUserPayload,
+  ) {
+    return this.ok(
+      'Fish booking created successfully',
+      await this.bookingsService.createFishBooking(dto, user, user?.id),
+    );
+  }
+
+  @Post('ept/preview')
+  @ApiOkResponse({ description: 'Computed preview — nothing persisted' })
+  async previewEpt(@Body() dto: CreateEptBookingDto) {
+    return this.ok(
+      'EPT booking preview computed',
+      await this.bookingsService.previewEptBooking(dto),
+    );
+  }
+
+  @Post('ept')
+  @ApiOkResponse({ type: BookingResponseDto })
+  async createEpt(
+    @Body() dto: CreateEptBookingDto,
+    @CurrentUser() user: CurrentUserPayload,
+  ) {
+    return this.ok(
+      'EPT booking created successfully',
+      await this.bookingsService.createEptBooking(dto, user, user?.id),
+    );
+  }
+
+  @Patch(':id/confirm-payment')
+  @ApiOkResponse({ type: BookingResponseDto })
+  async confirmPayment(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ConfirmPaymentDto,
+    @CurrentUser() user: CurrentUserPayload,
+  ) {
+    return this.ok(
+      'Payment confirmed successfully',
+      await this.bookingsService.confirmPayment(id, dto, user),
+    );
+  }
+
+  // ── FIFO / GTG scheduling (manually triggered) ──
+
+  @Patch(':id/mark-matched')
+  @ApiOkResponse({ type: BookingResponseDto })
+  async markMatched(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: CurrentUserPayload,
+  ) {
+    return this.ok(
+      'Booking marked as matched',
+      await this.bookingsService.markMatched(id, user),
+    );
+  }
+
+  @Patch(':id/mark-in-facility')
+  @ApiOkResponse({ type: BookingResponseDto })
+  async markInFacility(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: CurrentUserPayload,
+  ) {
+    return this.ok(
+      'Booking marked in-facility',
+      await this.bookingsService.markInFacility(id, user),
+    );
+  }
+
+  @Patch(':id/mark-in-pregate')
+  @ApiOkResponse({ type: BookingResponseDto })
+  async markInPregate(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body('pregate_transit_park_id', ParseUUIDPipe)
+    pregateTransitParkId: string,
+    @CurrentUser() user: CurrentUserPayload,
+  ) {
+    return this.ok(
+      'Booking marked in-pregate',
+      await this.bookingsService.markInPregate(id, pregateTransitParkId, user),
+    );
+  }
+
+  @Patch(':id/mark-gtg-facility')
+  @ApiOkResponse({ type: BookingResponseDto })
+  async markGtgFacility(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: CurrentUserPayload,
+  ) {
+    return this.ok(
+      'Booking cleared GTG-Facility',
+      await this.bookingsService.markGtgFacility(id, user),
+    );
+  }
+
+  @Patch(':id/mark-gtg-pregate')
+  @ApiOkResponse({ type: BookingResponseDto })
+  async markGtgPregate(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: CurrentUserPayload,
+  ) {
+    return this.ok(
+      'Booking cleared GTG-Pregate',
+      await this.bookingsService.markGtgPregate(id, user),
+    );
+  }
+
+  @Get('queue/facility')
+  @ApiOkResponse({ description: 'Ordered release queue for a facility or EPT' })
+  async facilityQueue(
+    @Query('facility_id') facilityId?: string,
+    @Query('transit_park_id') transitParkId?: string,
+  ) {
+    return this.ok(
+      'Facility queue fetched successfully',
+      await this.bookingsService.facilityQueue({
+        facility_id: facilityId,
+        transit_park_id: transitParkId,
+      }),
+    );
+  }
+
+  @Get('queue/pregate')
+  @ApiOkResponse({
+    description: 'Ordered cross-pregate FIFO queue for a destination terminal',
+  })
+  async pregateQueue(@Query('terminal_id', ParseUUIDPipe) terminalId: string) {
+    return this.ok(
+      'Pregate queue fetched successfully',
+      await this.bookingsService.pregateQueue(terminalId),
     );
   }
 

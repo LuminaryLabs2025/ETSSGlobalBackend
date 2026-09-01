@@ -15,6 +15,17 @@ import {
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
+/** Trucks/Drivers "mine vs public" picker for SuperAdmin booking-creation forms. */
+export class QueryBookingOptionsDto {
+  @IsOptional()
+  @IsUUID()
+  transporter_company_id?: string;
+
+  @IsOptional()
+  @IsString()
+  search?: string;
+}
+
 // ─── Shared query ───
 export class QueryOperationsDto {
   @IsOptional()

@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { getDatabaseConfig } from './config/database.config';
@@ -22,10 +23,12 @@ import { FinesModule } from './modules/fines/fines.module';
 import { DttrModule } from './modules/dttr/dttr.module';
 import { BookingsModule } from './modules/bookings/bookings.module';
 import { UtilityTicketsModule } from './modules/utility-tickets/utility-tickets.module';
+import { KeepAliveModule } from './modules/keep-alive/keep-alive.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ScheduleModule.forRoot(),
     QueueModule,
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
@@ -48,6 +51,7 @@ import { UtilityTicketsModule } from './modules/utility-tickets/utility-tickets.
     DttrModule,
     BookingsModule,
     UtilityTicketsModule,
+    KeepAliveModule,
   ],
   providers: [
     {

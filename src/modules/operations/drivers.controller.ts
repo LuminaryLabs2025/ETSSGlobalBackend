@@ -23,6 +23,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { DriversService } from './drivers.service';
 import {
   CreateDriverDto,
+  QueryBookingOptionsDto,
   QueryDriversDto,
   ReasonDto,
 } from './dto/operations.dto';
@@ -69,6 +70,18 @@ export class DriversController {
     return this.ok(
       'Drivers fetched successfully',
       await this.driversService.findDrivers(query),
+    );
+  }
+
+  @Get('booking-options')
+  @ApiOkResponse({
+    description:
+      '"Mine" (by transporter_company_id) vs "Public" driver options for booking-creation forms',
+  })
+  async bookingOptions(@Query() query: QueryBookingOptionsDto) {
+    return this.ok(
+      'Driver booking options fetched successfully',
+      await this.driversService.findDriverBookingOptions(query),
     );
   }
 
