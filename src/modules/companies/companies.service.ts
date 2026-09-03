@@ -43,6 +43,15 @@ export class CompaniesService {
     if (query.is_active !== undefined) {
       qb.andWhere('row.is_active = :isActive', { isActive: query.is_active });
     }
+    if (query.user_type_id) {
+      qb.andWhere('row.user_type_id = :userTypeId', {
+        userTypeId: query.user_type_id,
+      });
+    } else if (query.user_type_slug) {
+      qb.andWhere('user_type.slug = :userTypeSlug', {
+        userTypeSlug: query.user_type_slug,
+      });
+    }
     return qb.getMany();
   }
 

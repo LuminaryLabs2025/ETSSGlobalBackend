@@ -64,10 +64,12 @@ type ApiError = { statusCode: number; message: string; timestamp: string; path: 
 Replaces `BOOK_ASSIST_TRANSPORTERS`.
 
 ```
-GET /api/companies?search=<free text>
+GET /api/companies?search=<free text>&user_type_id=<uuid>&user_type_slug=<slug>
 ```
 
 Response: **plain `Company[]`** — no `{success, message, data}` wrapper, and not paginated (see the callout above). `search` matches `name`/`email`/`phone`. Use `id` + `name` to build your `SearchableSelect` options.
+
+`user_type_id` / `user_type_slug` optionally narrow the list to companies of a given `UserType` (e.g. pass the id from `GET /api/user-types?search=Transporter` once such a type exists, or its `slug` directly). If both are sent, `user_type_id` wins. **Note:** as of this writing there is no seeded "Transporter" `UserType`, and companies created via the transporter seed data have `user_type_id` left `NULL` — so this filter is available but won't isolate transporters from other companies until a "Transporter" type is created and assigned.
 
 ### 2.2 Facility / Terminal / EPT pickers
 
