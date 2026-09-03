@@ -21,12 +21,17 @@ import { Response } from 'express';
 import { SuperAdminGuard } from '../../common/guards';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { BookingsService } from './bookings.service';
-import { QueryBookingsDto, QueryManifestDto } from './dto/bookings.dto';
+import {
+  QueryBookingsDto,
+  QueryManifestDto,
+  QueryPregateQueueDto,
+} from './dto/bookings.dto';
 import {
   ConfirmPaymentDto,
   CreateEptBookingDto,
   CreateFacilityBookingDto,
   CreateFishBookingDto,
+  MarkInPregateDto,
 } from './dto/create-booking.dto';
 import {
   BookingListResponseDto,
@@ -267,13 +272,16 @@ export class BookingsController {
   @ApiOkResponse({ type: BookingResponseDto })
   async markInPregate(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body('pregate_transit_park_id', ParseUUIDPipe)
-    pregateTransitParkId: string,
+    @Body() dto: MarkInPregateDto,
     @CurrentUser() user: CurrentUserPayload,
   ) {
     return this.ok(
       'Booking marked in-pregate',
-      await this.bookingsService.markInPregate(id, pregateTransitParkId, user),
+      await this.bookingsService.markInPregate(
+        id,
+        dto.pregate_transit_park_id,
+        user,
+      ),
     );
   }
 
@@ -320,10 +328,10 @@ export class BookingsController {
   @ApiOkResponse({
     description: 'Ordered cross-pregate FIFO queue for a destination terminal',
   })
-  async pregateQueue(@Query('terminal_id', ParseUUIDPipe) terminalId: string) {
+  async pregateQueue(@Query() query: QueryPregateQueueDto) {
     return this.ok(
       'Pregate queue fetched successfully',
-      await this.bookingsService.pregateQueue(terminalId),
+      await this.bookingsService.pregateQueue(query.terminal_id),
     );
   }
 

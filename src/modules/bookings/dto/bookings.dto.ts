@@ -6,6 +6,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  IsUUID,
   Max,
   Min,
 } from 'class-validator';
@@ -152,4 +153,9 @@ export class QueryManifestDto {
   @IsOptional()
   @IsDateString()
   date?: string;
+}
+
+export class QueryPregateQueueDto {
+  @IsUUID()
+  terminal_id: string;
 }
