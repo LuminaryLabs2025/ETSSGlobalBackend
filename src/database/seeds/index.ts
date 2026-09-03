@@ -38,7 +38,7 @@ async function runAllSeeds(): Promise<void> {
     await backfillUserPermissionsFromTypes(dataSource);
     await runAppOptionsSeed(dataSource);
     await runTerminalsParksFacilitiesSeed(dataSource);
-    await runOperationsSeed(dataSource);
+    await runOperationsSeed(dataSource, userTypeMap);
     await runSprint3Seed(dataSource);
 
     console.log('\n🎉 All seeds completed successfully!');

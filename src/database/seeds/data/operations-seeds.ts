@@ -8,6 +8,20 @@ export const TRANSPORTER_COMPANIES = [
   { name: 'Coscharis Transport' },
 ];
 
+/** Companies seeded with user_type_id set to the 'transporter' UserType. */
+export const TRANSPORTER_TYPE_COMPANIES = [
+  {
+    name: 'Swift Haulage Nigeria Ltd',
+    email: 'info@swifthaulage.ng',
+    phone: '+2348011122233',
+  },
+  {
+    name: 'Golden Fleet Logistics',
+    email: 'contact@goldenfleet.ng',
+    phone: '+2348099988877',
+  },
+];
+
 export const TRUCK_SEEDS = [
   {
     plate_number: 'AAA-423-WA',

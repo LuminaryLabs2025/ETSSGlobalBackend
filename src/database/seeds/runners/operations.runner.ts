@@ -1,5 +1,6 @@
 import { DataSource } from 'typeorm';
 import { Company } from '../../entities/company.entity';
+import { UserType } from '../../entities/user-type.entity';
 import {
   TruckCapacity,
   TruckLength,
@@ -18,11 +19,15 @@ import {
   DRIVER_SEEDS,
   TEP_SEEDS,
   TRANSPORTER_COMPANIES,
+  TRANSPORTER_TYPE_COMPANIES,
   TRUCK_SEEDS,
 } from '../data/operations-seeds';
 import { TEP_SOURCE_BY_CLASSIFICATION } from '../../../modules/operations/dto/operations.dto';
 
-export async function runOperationsSeed(dataSource: DataSource): Promise<void> {
+export async function runOperationsSeed(
+  dataSource: DataSource,
+  userTypeMap: Map<string, UserType>,
+): Promise<void> {
   console.log('  → Operations (trucks, drivers, TEPs, disputes)');
 
   const companyRepo = dataSource.getRepository(Company);
@@ -34,6 +39,21 @@ export async function runOperationsSeed(dataSource: DataSource): Promise<void> {
       company = await companyRepo.save(companyRepo.create({ name: c.name }));
     }
     companyMap.set(c.name, company);
+  }
+
+  const transporterType = userTypeMap.get('transporter');
+  for (const c of TRANSPORTER_TYPE_COMPANIES) {
+    let company = await companyRepo.findOne({ where: { name: c.name } });
+    if (!company) {
+      company = await companyRepo.save(
+        companyRepo.create({
+          name: c.name,
+          email: c.email,
+          phone: c.phone,
+          user_type_id: transporterType?.id ?? undefined,
+        }),
+      );
+    }
   }
 
   const truckTypeRepo = dataSource.getRepository(TruckType);

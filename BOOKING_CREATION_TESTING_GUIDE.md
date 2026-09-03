@@ -236,17 +236,21 @@ curl -s -X PATCH http://localhost:3000/api/bookings/<booking uuid>/confirm-payme
 
 This is the part worth testing carefully — it's new scheduling logic, not just CRUD.
 
+**Step order is `mark-in-facility` → `mark-matched` → `mark-gtg-facility`** — a truck must physically check in at the facility before it can be marked matched (matching a slot/TEP happens once the truck is already on-site).
+
 1. Create **two** Bonded Terminal (or Truck Park/Fish) bookings against the **same facility** (reuse the same `facility_id`, different trucks/drivers). Call the first one **A**, the second **B**.
-2. Mark **B** matched first, then **A**:
+2. Mark **B** in-facility first, then **A**, then match both in the same order:
    ```bash
+   curl -s -X PATCH http://localhost:3000/api/bookings/$B/mark-in-facility -H "Authorization: Bearer $TOKEN"
+   curl -s -X PATCH http://localhost:3000/api/bookings/$A/mark-in-facility -H "Authorization: Bearer $TOKEN"
    curl -s -X PATCH http://localhost:3000/api/bookings/$B/mark-matched -H "Authorization: Bearer $TOKEN"
    curl -s -X PATCH http://localhost:3000/api/bookings/$A/mark-matched -H "Authorization: Bearer $TOKEN"
    ```
 3. Check the facility queue:
    ```bash
-   curl -s "http://localhost:3000/api/bookings/queue/facility?facility_id=<facility id>" -H "Authorization: Bearer $TOKEN" | jq '.data[] | {id, queue_position, matched_at}'
+   curl -s "http://localhost:3000/api/bookings/queue/facility?facility_id=<facility id>" -H "Authorization: Bearer $TOKEN" | jq '.data[] | {id, queue_position, in_facility_at, matched_at}'
    ```
-   **B** should be `queue_position: 1` (it matched first), **A** should be `2` — this is the doc's "first to match is first to be batched" rule.
+   **B** should be `queue_position: 1` (it checked in first), **A** should be `2` — this is the doc's "first to check in is first to be batched" rule.
 4. Try releasing **A** out of turn:
    ```bash
    curl -s -X PATCH http://localhost:3000/api/bookings/$A/mark-gtg-facility -H "Authorization: Bearer $TOKEN"
@@ -257,7 +261,7 @@ This is the part worth testing carefully — it's new scheduling logic, not just
    curl -s -X PATCH http://localhost:3000/api/bookings/$B/mark-gtg-facility -H "Authorization: Bearer $TOKEN"
    ```
 6. Now **A** should be first in the queue and `mark-gtg-facility` on it should succeed.
-7. Also try `mark-in-facility` on a booking that hasn't been matched yet — expect 400.
+7. Also try `mark-matched` on a booking that hasn't been marked in-facility yet — expect 400 ("Booking must be in-facility before it can be matched").
 
 ### Pregate cross-facility FIFO
 

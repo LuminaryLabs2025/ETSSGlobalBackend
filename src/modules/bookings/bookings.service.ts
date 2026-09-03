@@ -878,6 +878,11 @@ export class BookingsService {
     if (booking.status !== 'LIVE') {
       throw new BadRequestException('Only LIVE bookings can be matched');
     }
+    if (!booking.in_facility_at) {
+      throw new BadRequestException(
+        'Booking must be in-facility before it can be matched',
+      );
+    }
     if (booking.matched_at) {
       throw new BadRequestException('Booking is already matched');
     }
@@ -904,10 +909,8 @@ export class BookingsService {
       id,
       'Booking not found',
     );
-    if (!booking.matched_at) {
-      throw new BadRequestException(
-        'Booking must be matched before entering the facility',
-      );
+    if (booking.status !== 'LIVE') {
+      throw new BadRequestException('Only LIVE bookings can enter a facility');
     }
     if (booking.in_facility_at) {
       throw new BadRequestException('Booking is already marked in-facility');
@@ -997,8 +1000,8 @@ export class BookingsService {
       });
     }
     qb.orderBy('row.priority_rank', 'ASC')
-      .addOrderBy('row.matched_at', 'ASC')
       .addOrderBy('row.in_facility_at', 'ASC')
+      .addOrderBy('row.matched_at', 'ASC')
       .addOrderBy('row.created_at', 'ASC');
     const rows = await qb.getMany();
     return rows.map((booking, index) => ({

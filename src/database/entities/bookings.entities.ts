@@ -251,11 +251,14 @@ export class Booking {
   @Column({ type: 'smallint', default: 3 })
   priority_rank: number;
 
-  /** Truck matched to a TEP/slot for this booking — FIFO tiebreak #1. */
+  /**
+   * Truck matched to a TEP/slot for this booking — set after in_facility_at
+   * (a truck must check in before it can be matched). FIFO tiebreak #2.
+   */
   @Column({ type: 'timestamp', nullable: true })
   matched_at: Date | null;
 
-  /** Truck physically checked in at the facility — FIFO tiebreak #2. */
+  /** Truck physically checked in at the facility — FIFO tiebreak #1. */
   @Column({ type: 'timestamp', nullable: true })
   in_facility_at: Date | null;
 

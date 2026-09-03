@@ -288,7 +288,71 @@ Keep your existing `validateStep1()` client-side checks (required fields, T&Cs c
 
 ---
 
-## 6. Suggested integration order
+## 6. Full status lifecycle (booking, truck, driver)
+
+This is the ops/dashboard side of things (not part of the 4 creation forms per §5, but useful context for any status badges/timelines you build elsewhere).
+
+### 6.1 `Booking.status`
+
+| Value | Set by | Notes |
+|---|---|---|
+| `LIVE` | Booking creation (default) | Every booking starts here. |
+| `CANCELLED` | `PATCH /api/bookings/:id/cancel` | Reachable any time except from an already-`CANCELLED` booking. Clears `manifest_status`. |
+| `COMPLETED` | — | **Exists in the schema and is counted in `GET /api/bookings/summary`, but no endpoint currently transitions a booking into it.** Only present on old static seed rows. Don't build UI that expects a live booking to reach this yet. |
+| `EXPIRED` | — | Same caveat as `COMPLETED` — schema/summary only, not reachable via any implemented mutation today. |
+
+### 6.2 The post-payment ops flow (per booking)
+
+```
+created (status=LIVE, payment_status=PENDING)
+   │
+   ▼
+PATCH /confirm-payment          → payment_status: PENDING → PAID
+   │
+   ▼
+PATCH /mark-in-facility         → in_facility_at set, truck_status → IN_FACILITY, driver operational_status → IN_FACILITY
+   │   (or, independently: PATCH /mark-in-pregate → in_pregate_at set, truck_status → IN_PREGATE)
+   ▼
+PATCH /mark-matched             → matched_at set, truck_status → MATCHED
+   │   (requires in_facility_at already set — this order was flipped 2026-09-03; matching now happens after check-in, not before)
+   ▼
+PATCH /mark-gtg-facility        → gtg_facility_at set, truck_status → GTG_FACILITY
+   │   (only succeeds if this booking is #1 in GET /queue/facility — ordered by priority_rank, then in_facility_at, then matched_at)
+   │   (or, independently: PATCH /mark-gtg-pregate → gtg_pregate_at set, truck_status → GTG_PREGATE, gated by GET /queue/pregate)
+   ▼
+(end of currently-implemented flow — no further transition exists yet)
+```
+
+Each `mark-*` call validates the previous step happened and 400s if you call it out of order or twice — see `BOOKING_CREATION_TESTING_GUIDE.md` §8 for exact request/response examples. None of these are called by the 4 creation forms; they're a separate ops-dashboard concern per §5.
+
+### 6.3 `Truck.truck_status`
+
+Full enum (DB constraint): `AVAILABLE | ON_TRIP | IN_FACILITY | MATCHED | GTG_FACILITY | LEFT_FACILITY | IN_PREGATE | GTG_PREGATE | LEFT_PREGATE | IN_TERMINAL | LEFT_TERMINAL`.
+
+**Only these are actually reachable via the API today:**
+- `MATCHED`, `IN_FACILITY`, `IN_PREGATE`, `GTG_FACILITY`, `GTG_PREGATE` — set by the `mark-*` booking endpoints above.
+- `AVAILABLE` — set only when re-enabling a previously-disabled truck (`PATCH /api/trucks/:id/re-enable`); new trucks are created with `truck_status: null`, which the backend treats as available for booking-eligibility purposes (`null` and `'AVAILABLE'` are equivalent for that check).
+- `null` — set when a truck is disabled.
+
+**Not reachable via any current endpoint** (schema-only / seed-only): `ON_TRIP`, `LEFT_FACILITY`, `LEFT_PREGATE`, `IN_TERMINAL`, `LEFT_TERMINAL`. Don't build UI flows that expect the API to ever produce these right now — if you see them, it's on an old seeded demo row, not live data.
+
+### 6.4 `Driver.operational_status`
+
+Full enum: `AVAILABLE | ON_TRIP | IN_FACILITY | IN_PREGATE | IN_TERMINAL | OFF_DUTY | SUSPENDED`.
+
+**Only `IN_FACILITY` is currently set** (alongside the truck's `IN_FACILITY`, via `mark-in-facility`). Everything else in that enum is not written by any endpoint today — same "seed-only" caveat as above.
+
+### 6.5 `Booking.payment_status`
+
+`PENDING` (default) → `PAID` (via `confirm-payment`, §3.5). `FAILED` exists in the schema's check constraint but nothing in the API sets it.
+
+### 6.6 Manifest / tow-truck fields — not live-wired yet
+
+`manifest_status` (`IN_MANIFEST`/`LEFT_MANIFEST`) can be toggled between the two values via `add-to-manifest`/`remove-from-manifest`, but nothing currently sets the *initial* value, `left_pregate_at`, or any of the `tow_*` fields — those only exist on static seed rows today. Treat "Today's Manifest" and tow-truck-request UI as display-only against seed data for now, not a live flow.
+
+---
+
+## 7. Suggested integration order
 
 1. Companies search (`services/companies.service.ts`, trivial — just add a `search` param).
 2. Truck/driver `booking-options` service + hook, swap into `SearchableGroupedSelect` for all 4 forms.

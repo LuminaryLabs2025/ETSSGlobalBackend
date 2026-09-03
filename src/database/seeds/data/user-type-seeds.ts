@@ -492,6 +492,28 @@ export const USER_TYPE_SEEDS: UserTypeSeed[] = [
   },
 
   {
+    name: 'Transporter',
+    slug: 'transporter',
+    category: UserTypeCategory.EXTERNAL,
+    metadata: {
+      fields: [
+        {
+          name: 'company_name',
+          label: 'Name of Company',
+          type: 'string',
+          required: true,
+        },
+        {
+          name: 'corporate_address',
+          label: 'Corporate Address',
+          type: 'text',
+          required: true,
+        },
+      ],
+    },
+  },
+
+  {
     name: 'Tow Truck Company',
     slug: 'tow-truck-company',
     category: UserTypeCategory.EXTERNAL,
