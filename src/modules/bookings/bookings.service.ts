@@ -938,29 +938,19 @@ export class BookingsService {
     return this.findBooking(id);
   }
 
-  async markInPregate(
-    id: string,
-    pregateTransitParkId: string,
-    user?: ActorUser,
-  ) {
+  async markInPregate(id: string, user?: ActorUser) {
     const booking = await requireEntity(
       this.bookingRepository,
       id,
       'Booking not found',
     );
-    const pregate = await requireEntity(
-      this.transitParkRepository,
-      pregateTransitParkId,
-      'Pregate transit park not found',
-    );
-    if (pregate.transit_park_type !== 'PREGATE') {
-      throw new BadRequestException('Selected transit park is not a Pregate');
+    if (booking.status !== 'LIVE') {
+      throw new BadRequestException('Only LIVE bookings can enter a pregate');
     }
     if (booking.in_pregate_at) {
       throw new BadRequestException('Booking is already marked in-pregate');
     }
     booking.in_pregate_at = new Date();
-    booking.pregate_transit_park_id = pregate.id;
     await this.bookingRepository.save(booking);
     if (booking.truck_id) {
       await this.truckRepository.update(
@@ -972,15 +962,15 @@ export class BookingsService {
       booking.id,
       'IN_PREGATE',
       this.actorName(user),
-      `Truck entered Pregate ${pregate.name}.`,
+      'Truck entered a Pregate.',
     );
     return this.findBooking(id);
   }
 
-  async facilityQueue(params: {
+  private async facilityQueueRows(params: {
     facility_id?: string;
     transit_park_id?: string;
-  }) {
+  }): Promise<Booking[]> {
     if (!params.facility_id && !params.transit_park_id) {
       throw new BadRequestException(
         'facility_id or transit_park_id is required',
@@ -1003,15 +993,20 @@ export class BookingsService {
       .addOrderBy('row.in_facility_at', 'ASC')
       .addOrderBy('row.matched_at', 'ASC')
       .addOrderBy('row.created_at', 'ASC');
-    const rows = await qb.getMany();
-    return rows.map((booking, index) => ({
-      ...this.mapBookingResponse(booking),
-      id: booking.id,
-      queue_position: index + 1,
-    }));
+    return qb.getMany();
   }
 
-  async pregateQueue(terminalId: string) {
+  async facilityQueue(params: {
+    facility_id?: string;
+    transit_park_id?: string;
+    page?: number;
+    limit?: number;
+  }) {
+    const rows = await this.facilityQueueRows(params);
+    return this.paginateQueueRows(rows, params.page, params.limit);
+  }
+
+  private async pregateQueueRows(terminalId: string): Promise<Booking[]> {
     const qb = this.bookingRepository
       .createQueryBuilder('row')
       .where('row.status = :status', { status: 'LIVE' })
@@ -1020,12 +1015,35 @@ export class BookingsService {
       .andWhere('row.terminal_id = :tid', { tid: terminalId })
       .orderBy('row.priority_rank', 'ASC')
       .addOrderBy('row.in_pregate_at', 'ASC');
-    const rows = await qb.getMany();
-    return rows.map((booking, index) => ({
-      ...this.mapBookingResponse(booking),
-      id: booking.id,
-      queue_position: index + 1,
-    }));
+    return qb.getMany();
+  }
+
+  async pregateQueue(params: {
+    terminal_id: string;
+    page?: number;
+    limit?: number;
+  }) {
+    const rows = await this.pregateQueueRows(params.terminal_id);
+    return this.paginateQueueRows(rows, params.page, params.limit);
+  }
+
+  private paginateQueueRows(rows: Booking[], page = 1, limit = 20) {
+    const total = rows.length;
+    const start = (page - 1) * limit;
+    const pageRows = rows.slice(start, start + limit);
+    return {
+      data: pageRows.map((booking, index) => ({
+        ...this.mapBookingResponse(booking),
+        id: booking.id,
+        queue_position: start + index + 1,
+      })),
+      meta: {
+        total,
+        page,
+        limit,
+        total_pages: Math.max(1, Math.ceil(total / limit)),
+      },
+    };
   }
 
   async markGtgFacility(id: string, user?: ActorUser) {
@@ -1047,7 +1065,7 @@ export class BookingsService {
     if (booking.gtg_facility_at) {
       throw new BadRequestException('Booking is already GTG-Facility');
     }
-    const queue = await this.facilityQueue(
+    const queue = await this.facilityQueueRows(
       booking.facility_id
         ? { facility_id: booking.facility_id }
         : { transit_park_id: booking.transit_park_id ?? undefined },
@@ -1093,7 +1111,7 @@ export class BookingsService {
         'Booking has no destination terminal to queue against',
       );
     }
-    const queue = await this.pregateQueue(booking.terminal_id);
+    const queue = await this.pregateQueueRows(booking.terminal_id);
     if (!queue.length || queue[0].id !== booking.id) {
       throw new BadRequestException(
         'Another truck (possibly at a different Pregate) has priority for this terminal — release it first',

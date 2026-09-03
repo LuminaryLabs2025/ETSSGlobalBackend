@@ -248,7 +248,7 @@ This is the part worth testing carefully — it's new scheduling logic, not just
    ```
 3. Check the facility queue:
    ```bash
-   curl -s "http://localhost:3000/api/bookings/queue/facility?facility_id=<facility id>" -H "Authorization: Bearer $TOKEN" | jq '.data[] | {id, queue_position, in_facility_at, matched_at}'
+   curl -s "http://localhost:3000/api/bookings/queue/facility?facility_id=<facility id>" -H "Authorization: Bearer $TOKEN" | jq '.data.data[] | {id, queue_position, in_facility_at, matched_at}'
    ```
    **B** should be `queue_position: 1` (it checked in first), **A** should be `2` — this is the doc's "first to check in is first to be batched" rule.
 4. Try releasing **A** out of turn:
@@ -265,18 +265,15 @@ This is the part worth testing carefully — it's new scheduling logic, not just
 
 ### Pregate cross-facility FIFO
 
-1. Pick a Pregate transit park id: `curl -s "http://localhost:3000/api/transit-parks?type=PREGATE" ...`
-2. On booking **A** (already GTG-Facility from above), mark it in-pregate:
+1. On booking **A** (already GTG-Facility from above), mark it in-pregate — **no body required**, same shape as `mark-matched`/`mark-in-facility`:
    ```bash
-   curl -s -X PATCH http://localhost:3000/api/bookings/$A/mark-in-pregate \
-     -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-     -d '{"pregate_transit_park_id":"<pregate id>"}'
+   curl -s -X PATCH http://localhost:3000/api/bookings/$A/mark-in-pregate -H "Authorization: Bearer $TOKEN"
    ```
-3. Check the terminal-scoped pregate queue (uses `terminal_id` from the booking, i.e. its destination terminal):
+2. Check the terminal-scoped pregate queue (uses `terminal_id` from the booking, i.e. its destination terminal; response is paginated — `data.data[]` + `data.meta`):
    ```bash
-   curl -s "http://localhost:3000/api/bookings/queue/pregate?terminal_id=<terminal id>" -H "Authorization: Bearer $TOKEN" | jq
+   curl -s "http://localhost:3000/api/bookings/queue/pregate?terminal_id=<terminal id>" -H "Authorization: Bearer $TOKEN" | jq '.data.data[] | {id, queue_position, in_pregate_at}'
    ```
-4. `mark-gtg-pregate` on A should succeed if it's first in that queue; test the same "second truck blocked" behavior as step 8.4 above with a second booking destined for the same terminal (optionally through a *different* Pregate — the queue is FIFO by `in_pregate_at` across all Pregates feeding that terminal, exactly matching the doc).
+3. `mark-gtg-pregate` on A should succeed if it's first in that queue; test the same "second truck blocked" behavior as step 8.4 above with a second booking destined for the same terminal — the queue is FIFO by `in_pregate_at` across all Pregates feeding that terminal, exactly matching the doc. Note: since `mark-in-pregate` no longer records *which* Pregate a truck entered (only that it did), the queue is naturally terminal-wide only — there's no per-Pregate filter to test against.
 
 ---
 

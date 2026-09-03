@@ -158,4 +158,40 @@ export class QueryManifestDto {
 export class QueryPregateQueueDto {
   @IsUUID()
   terminal_id: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number = 1;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit?: number = 20;
+}
+
+export class QueryFacilityQueueDto {
+  @IsOptional()
+  @IsUUID()
+  facility_id?: string;
+
+  @IsOptional()
+  @IsUUID()
+  transit_park_id?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number = 1;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit?: number = 20;
 }

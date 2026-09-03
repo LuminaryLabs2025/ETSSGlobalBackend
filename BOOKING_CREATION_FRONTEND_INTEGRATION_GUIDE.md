@@ -311,7 +311,7 @@ PATCH /confirm-payment          → payment_status: PENDING → PAID
    │
    ▼
 PATCH /mark-in-facility         → in_facility_at set, truck_status → IN_FACILITY, driver operational_status → IN_FACILITY
-   │   (or, independently: PATCH /mark-in-pregate → in_pregate_at set, truck_status → IN_PREGATE)
+   │   (or, independently: PATCH /mark-in-pregate → in_pregate_at set, truck_status → IN_PREGATE — no request body)
    ▼
 PATCH /mark-matched             → matched_at set, truck_status → MATCHED
    │   (requires in_facility_at already set — this order was flipped 2026-09-03; matching now happens after check-in, not before)
@@ -323,7 +323,11 @@ PATCH /mark-gtg-facility        → gtg_facility_at set, truck_status → GTG_FA
 (end of currently-implemented flow — no further transition exists yet)
 ```
 
+All 5 `mark-*` endpoints (`mark-matched`, `mark-in-facility`, `mark-in-pregate`, `mark-gtg-facility`, `mark-gtg-pregate`) take **only the booking id in the URL — no request body on any of them.** In particular, `mark-in-pregate` does *not* ask which Pregate the truck entered (`pregate_transit_park_id` is not settable via the API) — the cross-Pregate queue is scoped by the booking's destination `terminal_id`, not by an individual Pregate, so which specific Pregate a truck passed through doesn't affect ordering.
+
 Each `mark-*` call validates the previous step happened and 400s if you call it out of order or twice — see `BOOKING_CREATION_TESTING_GUIDE.md` §8 for exact request/response examples. None of these are called by the 4 creation forms; they're a separate ops-dashboard concern per §5.
+
+`GET /queue/facility` and `GET /queue/pregate` are both paginated (`?page=&limit=`, default `1`/`20`, max `limit=100`) and return the standard `ApiResponse<PaginatedResponse<T>>` envelope — i.e. `data.data[]` + `data.meta.{total,page,limit,total_pages}` — same shape as every other list endpoint in this doc, not the flat array they returned before.
 
 ### 6.3 `Truck.truck_status`
 

@@ -161,7 +161,11 @@ export class Booking {
   @JoinColumn({ name: 'transit_park_id' })
   transit_park: TransitPark | null;
 
-  /** Set only by the mark-in-pregate manual-trigger step, not at creation. */
+  /**
+   * Not set by mark-in-pregate (which takes no body/pregate selection) —
+   * the pregate FIFO queue is scoped by terminal_id, not by a specific
+   * pregate. Column kept for any future flow that needs it.
+   */
   @Column({ type: 'uuid', nullable: true })
   pregate_transit_park_id: string | null;
 

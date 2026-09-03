@@ -23,6 +23,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { BookingsService } from './bookings.service';
 import {
   QueryBookingsDto,
+  QueryFacilityQueueDto,
   QueryManifestDto,
   QueryPregateQueueDto,
 } from './dto/bookings.dto';
@@ -31,7 +32,6 @@ import {
   CreateEptBookingDto,
   CreateFacilityBookingDto,
   CreateFishBookingDto,
-  MarkInPregateDto,
 } from './dto/create-booking.dto';
 import {
   BookingListResponseDto,
@@ -272,16 +272,11 @@ export class BookingsController {
   @ApiOkResponse({ type: BookingResponseDto })
   async markInPregate(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: MarkInPregateDto,
     @CurrentUser() user: CurrentUserPayload,
   ) {
     return this.ok(
       'Booking marked in-pregate',
-      await this.bookingsService.markInPregate(
-        id,
-        dto.pregate_transit_park_id,
-        user,
-      ),
+      await this.bookingsService.markInPregate(id, user),
     );
   }
 
@@ -310,28 +305,25 @@ export class BookingsController {
   }
 
   @Get('queue/facility')
-  @ApiOkResponse({ description: 'Ordered release queue for a facility or EPT' })
-  async facilityQueue(
-    @Query('facility_id') facilityId?: string,
-    @Query('transit_park_id') transitParkId?: string,
-  ) {
+  @ApiOkResponse({
+    description: 'Paginated, ordered release queue for a facility or EPT',
+  })
+  async facilityQueue(@Query() query: QueryFacilityQueueDto) {
     return this.ok(
       'Facility queue fetched successfully',
-      await this.bookingsService.facilityQueue({
-        facility_id: facilityId,
-        transit_park_id: transitParkId,
-      }),
+      await this.bookingsService.facilityQueue(query),
     );
   }
 
   @Get('queue/pregate')
   @ApiOkResponse({
-    description: 'Ordered cross-pregate FIFO queue for a destination terminal',
+    description:
+      'Paginated, ordered cross-pregate FIFO queue for a destination terminal',
   })
   async pregateQueue(@Query() query: QueryPregateQueueDto) {
     return this.ok(
       'Pregate queue fetched successfully',
-      await this.bookingsService.pregateQueue(query.terminal_id),
+      await this.bookingsService.pregateQueue(query),
     );
   }
 

@@ -135,8 +135,3 @@ export class ConfirmPaymentDto {
   })
   terms_accepted: true;
 }
-
-export class MarkInPregateDto {
-  @IsUUID()
-  pregate_transit_park_id: string;
-}
