@@ -65,3 +65,8 @@ export {
   UtilityTicketHistory,
   UtilityAssignedPersonnel,
 } from './utility-tickets.entities';
+export {
+  Invoice,
+  PaymentTransaction,
+  PaymentWebhookEvent,
+} from './payments.entities';

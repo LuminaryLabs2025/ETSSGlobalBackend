@@ -220,15 +220,9 @@ Repeat for `truck-park`, `fish`, `ept` so you have one LIVE booking of each type
 
 ---
 
-## 7. Payment confirmation
+## 7. Payment — superseded by the real Paystack integration
 
-```bash
-curl -s -X PATCH http://localhost:3000/api/bookings/<booking uuid>/confirm-payment \
-  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{"payment_method":"WALLET","terms_accepted":true}' | jq '.data | {payment_status, payment_method, paid_at, confirmed_at, terms_accepted_at}'
-```
-
-`terms_accepted` must be `true` (the "I AGREE TO MARITIME-ETSS TERMS & CONDITIONS" checkbox) or this 400s. Expect `payment_status: "PAID"` with all three timestamps populated. Calling it again on the same booking should 400 "Payment already confirmed".
+`PATCH .../confirm-payment` (shown in earlier revisions of this doc) **no longer exists** — it was a trust-the-client stub, replaced by a real Paystack-verified flow (`POST .../payments/initialize`, `POST /api/payments/verify`, webhook + reconciliation cron). See `PAYMENTS_FRONTEND_INTEGRATION_GUIDE.md` for the full request/response shapes and testing steps (including how to test webhook signature verification and idempotency without a live Paystack account).
 
 ---
 

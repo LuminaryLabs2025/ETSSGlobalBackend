@@ -1,5 +1,4 @@
 import {
-  Equals,
   IsDateString,
   IsIn,
   IsNotEmpty,
@@ -21,8 +20,6 @@ export const EPT_OPERATION_TYPES = [
   'VERIFIED_EXPORT_COLLECTION',
   'LOADED_DELIVERY_WITH_COLLECTION',
 ] as const;
-
-export const PAYMENT_METHODS = ['WALLET', 'PAYSTACK'] as const;
 
 /** Bonded Terminal & Truck Park share an identical field shape. */
 export class CreateFacilityBookingDto {
@@ -119,19 +116,4 @@ export class CreateEptBookingDto {
   @IsString()
   @IsNotEmpty()
   gate_pass_number: string;
-}
-
-export class ConfirmPaymentDto {
-  @IsIn(PAYMENT_METHODS)
-  payment_method: (typeof PAYMENT_METHODS)[number];
-
-  /**
-   * The "I AGREE TO MARITIME-ETSS TERMS & CONDITIONS" checkbox — per spec
-   * this appears alongside the payment section, not at create time, so it's
-   * enforced here rather than on the create DTOs.
-   */
-  @Equals(true, {
-    message: 'terms_accepted must be true to proceed to payment',
-  })
-  terms_accepted: true;
 }

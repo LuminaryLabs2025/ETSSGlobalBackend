@@ -14,6 +14,7 @@ import {
   TransitPark,
   Truck,
 } from '../../database/entities';
+import { PaymentsModule } from '../payments/payments.module';
 import { BookingsController } from './bookings.controller';
 import { BookingsService } from './bookings.service';
 
@@ -33,6 +34,7 @@ import { BookingsService } from './bookings.service';
       Tep,
       PaymentType,
     ]),
+    PaymentsModule,
   ],
   controllers: [BookingsController],
   providers: [BookingsService],

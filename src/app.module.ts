@@ -24,6 +24,7 @@ import { DttrModule } from './modules/dttr/dttr.module';
 import { BookingsModule } from './modules/bookings/bookings.module';
 import { UtilityTicketsModule } from './modules/utility-tickets/utility-tickets.module';
 import { KeepAliveModule } from './modules/keep-alive/keep-alive.module';
+import { PaymentsModule } from './modules/payments/payments.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { KeepAliveModule } from './modules/keep-alive/keep-alive.module';
     OperationsModule,
     FinesModule,
     DttrModule,
+    PaymentsModule,
     BookingsModule,
     UtilityTicketsModule,
     KeepAliveModule,

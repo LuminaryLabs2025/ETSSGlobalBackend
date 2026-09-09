@@ -19,6 +19,7 @@ import { BookingCategory, FacilityTimeslot } from './app-options.entities';
 import { Truck, Driver, Tep } from './operations.entities';
 import { Company } from './company.entity';
 import { User } from './user.entity';
+import { Invoice } from './payments.entities';
 
 /**
  * Truck bookings across the platform (Manage Bookings). Also drives Today's
@@ -293,6 +294,18 @@ export class Booking {
 
   @Column({ type: 'timestamp', nullable: true })
   paid_at: Date | null;
+
+  /**
+   * The Invoice raised for this booking's fee. Null for bookings created
+   * before the Payments module shipped (their payment_status/paid_at above
+   * still reflect the legacy manual-confirm stub they were paid through).
+   */
+  @Column({ type: 'uuid', nullable: true })
+  invoice_id: string | null;
+
+  @ManyToOne(() => Invoice, { onDelete: 'SET NULL', nullable: true })
+  @JoinColumn({ name: 'invoice_id' })
+  invoice: Invoice | null;
 
   /** SuperAdmin who created this booking on behalf of the transporter. */
   @Column({ type: 'uuid', nullable: true })

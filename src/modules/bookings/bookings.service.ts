@@ -2,9 +2,16 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  OnModuleInit,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository, SelectQueryBuilder } from 'typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import {
+  DataSource,
+  EntityManager,
+  In,
+  Repository,
+  SelectQueryBuilder,
+} from 'typeorm';
 import {
   Booking,
   BookingCategory,
@@ -13,6 +20,8 @@ import {
   Driver,
   Facility,
   FacilityTimeslot,
+  Invoice,
+  PaymentTransaction,
   PaymentType,
   Tep,
   Terminal,
@@ -26,13 +35,19 @@ import {
   requireEntity,
   toCsv,
 } from '../../common/utils/query-helpers';
+import {
+  PaymentFinalizeOutcome,
+  PayableSyncHandler,
+  PaymentsService,
+} from '../payments/payments.service';
 import { QueryBookingsDto, QueryManifestDto } from './dto/bookings.dto';
 import {
-  ConfirmPaymentDto,
   CreateEptBookingDto,
   CreateFacilityBookingDto,
   CreateFishBookingDto,
 } from './dto/create-booking.dto';
+import { InitializePaymentDto } from '../payments/dto/initialize-payment.dto';
+import { VerifyPaymentDto } from '../payments/dto/verify-payment.dto';
 import {
   BookingTypeCode,
   computePriority,
@@ -40,7 +55,7 @@ import {
   deriveLegacyTransferType,
 } from './bookings-priority.util';
 
-type ActorUser = { first_name?: string; last_name?: string };
+type ActorUser = { first_name?: string; last_name?: string; email?: string };
 
 const RELATIONS = [
   'timeline',
@@ -51,6 +66,7 @@ const RELATIONS = [
   'terminal',
   'booking_category_ref',
   'expected_arrival_time_slot',
+  'invoice',
 ];
 
 const LINKED_FORM_BY_TYPE: Record<BookingTypeCode, string> = {
@@ -58,6 +74,13 @@ const LINKED_FORM_BY_TYPE: Record<BookingTypeCode, string> = {
   TRUCK_PARK: 'BOOK_TRUCK_PARK',
   FISH_VAN_PARK: 'BOOK_FISH',
   EPT: 'BOOK_EPT',
+};
+
+const BOOKING_TYPE_LABELS: Record<BookingTypeCode, string> = {
+  BONDED_TERMINAL: 'Bonded Terminal',
+  TRUCK_PARK: 'Truck Park',
+  FISH_VAN_PARK: 'Fish',
+  EPT: 'EPT',
 };
 
 const INELIGIBLE_TRUCK_STATUSES = [
@@ -98,8 +121,9 @@ interface ResolvedBookingInput {
 }
 
 @Injectable()
-export class BookingsService {
+export class BookingsService implements OnModuleInit, PayableSyncHandler {
   constructor(
+    @InjectDataSource() private readonly dataSource: DataSource,
     @InjectRepository(Booking)
     private readonly bookingRepository: Repository<Booking>,
     @InjectRepository(BookingTimelineEntry)
@@ -124,7 +148,93 @@ export class BookingsService {
     private readonly tepRepository: Repository<Tep>,
     @InjectRepository(PaymentType)
     private readonly paymentTypeRepository: Repository<PaymentType>,
+    private readonly paymentsService: PaymentsService,
   ) {}
+
+  /** Registers this service as the 'BOOKING' payable-sync handler so PaymentsService (generic, no BookingsModule import) can react to Paystack outcomes atomically. */
+  onModuleInit() {
+    this.paymentsService.registerPayableSyncHandler('BOOKING', this);
+  }
+
+  // ─────────────────────────────────────────────────────────────────────
+  // PayableSyncHandler — invoked by PaymentsService.finalizeTransaction
+  // inside its DB transaction, so these writes commit atomically with the
+  // Transaction/Invoice rows.
+  // ─────────────────────────────────────────────────────────────────────
+
+  async onPaymentFinalized(params: {
+    manager: EntityManager;
+    invoice: Invoice;
+    transaction: PaymentTransaction;
+    outcome: PaymentFinalizeOutcome;
+  }): Promise<void> {
+    const { manager, invoice, transaction, outcome } = params;
+    const bookingRepo = manager.getRepository(Booking);
+    const timelineRepo = manager.getRepository(BookingTimelineEntry);
+    const booking = await bookingRepo.findOne({
+      where: { id: invoice.payable_id },
+    });
+    if (!booking) return;
+
+    if (outcome === 'PAID') {
+      booking.payment_status = 'PAID';
+      booking.payment_method = 'PAYSTACK';
+      booking.paid_at = transaction.paid_at ?? new Date();
+      booking.confirmed_at = booking.confirmed_at ?? new Date();
+      await bookingRepo.save(booking);
+      await timelineRepo.save(
+        timelineRepo.create({
+          booking_id: booking.id,
+          status: 'PAYMENT_CONFIRMED',
+          notes: `Payment confirmed via Paystack (${transaction.channel ?? 'unknown channel'}), reference ${transaction.reference}.`,
+        }),
+      );
+      return;
+    }
+
+    if (outcome === 'PAID_AFTER_CANCELLED') {
+      // Real money was collected for a since-cancelled booking. Per product
+      // decision, no refund automation — leave booking.payment_status as-is
+      // (the Invoice stays CANCELLED, not PAID) and flag the anomaly on the
+      // booking timeline; the PaymentTransaction row (SUCCESSFUL) is the
+      // durable record a human uses to process a manual refund.
+      await timelineRepo.save(
+        timelineRepo.create({
+          booking_id: booking.id,
+          status: 'PAYMENT_RECEIVED_AFTER_CANCELLATION',
+          notes: `Paystack payment (reference ${transaction.reference}) succeeded after this booking was already cancelled — needs manual reconciliation/refund.`,
+        }),
+      );
+      return;
+    }
+
+    // FAILED
+    await timelineRepo.save(
+      timelineRepo.create({
+        booking_id: booking.id,
+        status: 'PAYMENT_FAILED',
+        notes: transaction.gateway_response
+          ? `Payment attempt failed: ${transaction.gateway_response}`
+          : 'Payment attempt failed.',
+      }),
+    );
+  }
+
+  async onPayableEvent(params: {
+    manager: EntityManager;
+    payableId: string;
+    eventLabel: string;
+    notes?: string;
+  }): Promise<void> {
+    const timelineRepo = params.manager.getRepository(BookingTimelineEntry);
+    await timelineRepo.save(
+      timelineRepo.create({
+        booking_id: params.payableId,
+        status: params.eventLabel,
+        notes: params.notes ?? null,
+      }),
+    );
+  }
 
   async findBookings(query: QueryBookingsDto) {
     const qb = this.bookingRepository.createQueryBuilder('row');
@@ -302,15 +412,30 @@ export class BookingsService {
       throw new BadRequestException('Booking is already cancelled');
     }
 
-    booking.status = 'CANCELLED';
-    booking.manifest_status = null;
-    await this.bookingRepository.save(booking);
-    await this.appendTimeline(
-      booking.id,
-      'CANCELLED',
-      this.actorName(user),
-      'Booking cancelled by SuperAdmin.',
-    );
+    await this.dataSource.transaction(async (manager) => {
+      const bookingRepo = manager.getRepository(Booking);
+      const timelineRepo = manager.getRepository(BookingTimelineEntry);
+
+      booking.status = 'CANCELLED';
+      booking.manifest_status = null;
+      await bookingRepo.save(booking);
+      await timelineRepo.save(
+        timelineRepo.create({
+          booking_id: booking.id,
+          status: 'CANCELLED',
+          performed_by: this.actorName(user) ?? null,
+          notes: 'Booking cancelled by SuperAdmin.',
+        }),
+      );
+      // Auto-cancels the invoice (and abandons any active checkout link)
+      // only if it's still PENDING — a PAID invoice is left untouched, so
+      // this never un-does a payment that already succeeded.
+      await this.paymentsService.cancelInvoiceForPayable(
+        'BOOKING',
+        booking.id,
+        manager,
+      );
+    });
     return this.findBooking(id);
   }
 
@@ -758,6 +883,40 @@ export class BookingsService {
       this.actorName(user),
       `Booking created by SuperAdmin on behalf of ${resolved.transporter_company.name}.`,
     );
+
+    // Raises the Invoice for this booking's fee. A deliberately-configured
+    // ₦0 PaymentType (fee.total === 0 while fee.fee_configured is true)
+    // auto-settles here with no Paystack transaction; an UNCONFIGURED fee
+    // (fee.fee_configured === false) also produces a ₦0 invoice so booking
+    // creation itself never regresses while ops hasn't set up PaymentType
+    // rows yet — but POST .../payments/initialize hard-rejects on it (see
+    // PaymentsService.initializePayment) rather than silently treating an
+    // unconfigured fee the same as an intentional waiver.
+    const { invoice, autoSettled } =
+      await this.paymentsService.createInvoiceForPayable({
+        payableType: 'BOOKING',
+        payableId: saved.id,
+        amount: fee.total,
+        description: `${BOOKING_TYPE_LABELS[resolved.booking_type]} booking fee — ${saved.booking_id}`,
+        feeBreakdown: fee.lines,
+        issuedByUserId: userId ?? null,
+      });
+    saved.invoice_id = invoice.id;
+    if (autoSettled) {
+      saved.payment_status = 'PAID';
+      saved.paid_at = invoice.paid_at;
+      saved.confirmed_at = saved.confirmed_at ?? new Date();
+    }
+    await this.bookingRepository.save(saved);
+    if (autoSettled && fee.fee_configured) {
+      await this.appendTimeline(
+        saved.id,
+        'PAYMENT_NOT_REQUIRED',
+        this.actorName(user),
+        'Booking fee is configured at ₦0 for this booking type — auto-settled, no Paystack transaction.',
+      );
+    }
+
     return this.findBooking(saved.id);
   }
 
@@ -836,33 +995,71 @@ export class BookingsService {
   }
 
   // ─────────────────────────────────────────────────────────────────────
-  // Payment (manual, no gateway integration exists in this backend yet)
+  // Payment — real Paystack-verified flow (PaymentsService). Replaces the
+  // old trust-the-client confirm-payment stub entirely; there is no manual
+  // "mark as paid" path left.
   // ─────────────────────────────────────────────────────────────────────
 
-  async confirmPayment(id: string, dto: ConfirmPaymentDto, user?: ActorUser) {
+  async initializeBookingPayment(
+    id: string,
+    dto: InitializePaymentDto,
+    user?: ActorUser,
+    userId?: string,
+  ) {
+    void dto; // validated by the DTO (terms_accepted must be true) before this runs
     const booking = await requireEntity(
       this.bookingRepository,
       id,
       'Booking not found',
     );
-    if (booking.payment_status === 'PAID') {
+    if (booking.status === 'CANCELLED') {
       throw new BadRequestException(
-        'Payment already confirmed for this booking',
+        'This booking is cancelled — payment can no longer be initiated',
       );
     }
-    booking.payment_status = 'PAID';
-    booking.payment_method = dto.payment_method;
-    booking.paid_at = new Date();
-    booking.confirmed_at = booking.confirmed_at ?? new Date();
     booking.terms_accepted_at = booking.terms_accepted_at ?? new Date();
     await this.bookingRepository.save(booking);
-    await this.appendTimeline(
-      booking.id,
-      'PAYMENT_CONFIRMED',
-      this.actorName(user),
-      `Payment confirmed via ${dto.payment_method}.`,
+
+    const email = await this.resolvePayerEmail(booking, user?.email);
+    return this.paymentsService.initializePayment({
+      payableType: 'BOOKING',
+      payableId: booking.id,
+      email,
+      initiatedByUserId: userId ?? null,
+      callbackUrl: process.env.PAYSTACK_CALLBACK_URL,
+      metadata: { booking_id: booking.booking_id, booking_uuid: booking.id },
+    });
+  }
+
+  async verifyBookingPayment(id: string, dto: VerifyPaymentDto) {
+    const booking = await requireEntity(
+      this.bookingRepository,
+      id,
+      'Booking not found',
     );
+    await this.paymentsService.verifyPaymentForPayable({
+      payableType: 'BOOKING',
+      payableId: booking.id,
+      reference: dto.reference,
+    });
     return this.findBooking(id);
+  }
+
+  /** Company.email is nullable in this schema — falls back to the acting SuperAdmin's own email, which happens often, not rarely. */
+  private async resolvePayerEmail(
+    booking: Booking,
+    actorEmail?: string,
+  ): Promise<string> {
+    if (booking.transporter_company_id) {
+      const company = await this.companyRepository.findOne({
+        where: { id: booking.transporter_company_id },
+      });
+      if (company?.email) return company.email;
+    }
+    if (actorEmail) return actorEmail;
+    throw new BadRequestException(
+      'No payer email available — the transporter company has no email on file and the acting user has none either',
+    );
   }
 
   // ─────────────────────────────────────────────────────────────────────
@@ -1431,6 +1628,15 @@ export class BookingsService {
     if (booking.confirmed_at) response.confirmed_at = booking.confirmed_at;
     if (booking.terms_accepted_at)
       response.terms_accepted_at = booking.terms_accepted_at;
+    if (booking.invoice) {
+      response.invoice = {
+        id: booking.invoice.id,
+        invoice_number: booking.invoice.invoice_number,
+        status: booking.invoice.status,
+        amount: Number(booking.invoice.amount),
+        currency: booking.invoice.currency,
+      };
+    }
 
     return response;
   }

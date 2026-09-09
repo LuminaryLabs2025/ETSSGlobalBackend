@@ -250,18 +250,11 @@ const EPT_OPERATION_TYPES = [
 
 Just make sure whatever label strings you show ("Loaded Export Container Delivery to EPT", etc.) map to these exact enum values on submit, not the display label.
 
-### 3.5 Payment — `PATCH /api/bookings/:id/confirm-payment` (call on "Proceed To Pay")
+### 3.5 Payment — **moved, and the old endpoint is gone**
 
-```ts
-type ConfirmPaymentRequest = {
-  payment_method: 'WALLET' | 'PAYSTACK';
-  terms_accepted: true;   // the "I AGREE TO MARITIME-ETSS TERMS & CONDITIONS" checkbox — must be true or this 400s
-};
-```
+`PATCH /api/bookings/:id/confirm-payment` (and `payment_method: 'WALLET'`) **has been removed entirely** — it was a trust-the-client stub with no real gateway behind it. Payment is now a real, Paystack-verified flow with its own doc: **`PAYMENTS_FRONTEND_INTEGRATION_GUIDE.md`**.
 
-Per the spec, the T&C checkbox appears alongside the payment section (after "Confirm Details"), not at create time — that's why it's enforced here rather than on the create DTOs in §3.2. Gate your "Proceed To Pay" button on the checkbox being checked, and send `terms_accepted: true` only once it is.
-
-Returns the updated `Booking` with `payment_status: 'PAID'`, plus `paid_at`, `confirmed_at`, and `terms_accepted_at` timestamps. **Read §5 before wiring this** — there's no real wallet or Paystack integration behind it yet.
+If your "Proceed To Pay" button currently calls `bookingsService.confirmPayment(...)` (it does, in all 4 booking pages as of this writing) — **that call will start failing with a 404 as soon as this backend deploys.** Go implement the new flow before that happens; the new doc has the exact wiring, including what changes in `BookAssistUi.tsx`'s `PaymentSummaryPanel` (the wallet option is gone) and a new payment-callback page you'll need to add.
 
 ---
 

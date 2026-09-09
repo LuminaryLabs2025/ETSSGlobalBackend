@@ -28,11 +28,12 @@ import {
   QueryPregateQueueDto,
 } from './dto/bookings.dto';
 import {
-  ConfirmPaymentDto,
   CreateEptBookingDto,
   CreateFacilityBookingDto,
   CreateFishBookingDto,
 } from './dto/create-booking.dto';
+import { InitializePaymentDto } from '../payments/dto/initialize-payment.dto';
+import { VerifyPaymentDto } from '../payments/dto/verify-payment.dto';
 import {
   BookingListResponseDto,
   BookingResponseDto,
@@ -43,6 +44,7 @@ type CurrentUserPayload = {
   id: string;
   first_name: string;
   last_name: string;
+  email: string;
 };
 
 @ApiTags('bookings')
@@ -229,16 +231,36 @@ export class BookingsController {
     );
   }
 
-  @Patch(':id/confirm-payment')
-  @ApiOkResponse({ type: BookingResponseDto })
-  async confirmPayment(
+  @Post(':id/payments/initialize')
+  @ApiOkResponse({
+    description:
+      "Starts (or resumes) a Paystack checkout for this booking's fee. Redirect the SuperAdmin to `authorization_url`, or use `access_code` with Paystack Inline.",
+  })
+  async initializePayment(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: ConfirmPaymentDto,
+    @Body() dto: InitializePaymentDto,
     @CurrentUser() user: CurrentUserPayload,
   ) {
     return this.ok(
-      'Payment confirmed successfully',
-      await this.bookingsService.confirmPayment(id, dto, user),
+      'Payment initialized successfully',
+      await this.bookingsService.initializeBookingPayment(
+        id,
+        dto,
+        user,
+        user?.id,
+      ),
+    );
+  }
+
+  @Post(':id/payments/verify')
+  @ApiOkResponse({ type: BookingResponseDto })
+  async verifyPayment(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: VerifyPaymentDto,
+  ) {
+    return this.ok(
+      'Payment verified successfully',
+      await this.bookingsService.verifyBookingPayment(id, dto),
     );
   }
 

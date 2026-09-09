@@ -54,6 +54,7 @@ export async function runOperationsSeed(
         }),
       );
     }
+    companyMap.set(c.name, company);
   }
 
   const truckTypeRepo = dataSource.getRepository(TruckType);

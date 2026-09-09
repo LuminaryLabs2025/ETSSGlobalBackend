@@ -323,6 +323,18 @@ export class BookingDto {
 
   @ApiPropertyOptional()
   queue_position?: number;
+
+  @ApiPropertyOptional({
+    description:
+      "The Invoice raised for this booking's fee. Absent for bookings created before the Payments module shipped.",
+  })
+  invoice?: {
+    id: string;
+    invoice_number: string;
+    status: 'PENDING' | 'PAID' | 'CANCELLED';
+    amount: number;
+    currency: string;
+  };
 }
 
 class BookingListDataDto {

@@ -4,7 +4,11 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  // rawBody: true exposes req.rawBody (Buffer) so the Paystack webhook
+  // guard can HMAC the TRUE raw bytes rather than a re-stringified parsed
+  // body — the latter isn't guaranteed to round-trip byte-identically to
+  // what Paystack actually signed.
+  const app = await NestFactory.create(AppModule, { rawBody: true });
   const logger = new Logger('Bootstrap');
 
   app.useGlobalPipes(
