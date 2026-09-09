@@ -69,6 +69,11 @@ import {
   UtilityTicketHistory,
   UtilityAssignedPersonnel,
 } from '../entities/utility-tickets.entities';
+import {
+  Invoice,
+  PaymentTransaction,
+  PaymentWebhookEvent,
+} from '../entities/payments.entities';
 
 export const SEED_ENTITIES = [
   User,
@@ -122,6 +127,9 @@ export const SEED_ENTITIES = [
   Booking,
   BookingTimelineEntry,
   BookingException,
+  Invoice,
+  PaymentTransaction,
+  PaymentWebhookEvent,
   UtilityTicket,
   UtilityTicketHistory,
   UtilityAssignedPersonnel,
