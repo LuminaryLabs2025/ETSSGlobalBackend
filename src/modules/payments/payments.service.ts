@@ -52,6 +52,13 @@ export interface CreateInvoiceParams {
   payableType: string;
   payableId: string;
   amount: number;
+  /**
+   * Whether an ACTIVE PaymentType actually exists for this payable's
+   * linked_form — NOT just "amount happens to be 0". An unconfigured fee
+   * (no PaymentType rows at all) must never auto-settle, or every booking
+   * of an unconfigured type would silently become free forever.
+   */
+  feeConfigured: boolean;
   currency?: string;
   description: string;
   feeBreakdown?: { name: string; amount: number }[];
@@ -88,16 +95,18 @@ export class PaymentsService {
   // ─────────────────────────────────────────────────────────────────────
 
   /**
-   * Creates the Invoice for a payable. If `amount` is 0 (a deliberately
-   * configured ₦0 fee — a promo/waiver, distinct from an unconfigured fee,
-   * which the caller should never pass here as 0 without checking
-   * `fee_configured` itself), the Invoice is created already PAID with no
-   * PaymentTransaction row — Paystack rejects amount=0 anyway.
+   * Creates the Invoice for a payable. Only auto-settles (Invoice created
+   * already PAID, no PaymentTransaction row — Paystack rejects amount=0
+   * anyway) when `feeConfigured` is true AND `amount` is 0 — i.e. a
+   * deliberately-configured ₦0 PaymentType (a promo/waiver). An
+   * unconfigured fee (`feeConfigured: false`, amount defaults to 0) stays
+   * PENDING — `initializePayment` is what rejects that case (422), not this
+   * method, so an unconfigured booking type never silently becomes free.
    */
   async createInvoiceForPayable(
     params: CreateInvoiceParams,
   ): Promise<{ invoice: Invoice; autoSettled: boolean }> {
-    const autoSettled = params.amount <= 0;
+    const autoSettled = params.feeConfigured && params.amount <= 0;
     const invoice_number = await this.nextInvoiceNumber();
     const invoice = this.invoiceRepository.create({
       invoice_number,

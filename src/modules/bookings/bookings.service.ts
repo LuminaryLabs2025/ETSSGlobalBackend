@@ -897,6 +897,7 @@ export class BookingsService implements OnModuleInit, PayableSyncHandler {
         payableType: 'BOOKING',
         payableId: saved.id,
         amount: fee.total,
+        feeConfigured: fee.fee_configured,
         description: `${BOOKING_TYPE_LABELS[resolved.booking_type]} booking fee — ${saved.booking_id}`,
         feeBreakdown: fee.lines,
         issuedByUserId: userId ?? null,
