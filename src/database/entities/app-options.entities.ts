@@ -3,6 +3,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   OneToMany,
@@ -37,10 +38,7 @@ export class TruckType {
   @OneToMany(() => TruckLength, (length) => length.truck_type)
   lengths: TruckLength[];
 
-  @OneToMany(
-    () => TruckTypeBookingCategory,
-    (link) => link.truck_type,
-  )
+  @OneToMany(() => TruckTypeBookingCategory, (link) => link.truck_type)
   booking_category_links: TruckTypeBookingCategory[];
 }
 
@@ -212,7 +210,10 @@ export class FacilityType {
 }
 
 @Entity('facility_type_park_types')
-@Unique('UQ_facility_type_park_types_unique', ['facility_type_id', 'park_type_id'])
+@Unique('UQ_facility_type_park_types_unique', [
+  'facility_type_id',
+  'park_type_id',
+])
 export class FacilityTypeParkType {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -266,7 +267,10 @@ export class Location {
   @Column({ type: 'uuid', nullable: true })
   reference_id: string | null;
 
-  @OneToMany(() => FacilityTimeslotAssignment, (assignment) => assignment.location)
+  @OneToMany(
+    () => FacilityTimeslotAssignment,
+    (assignment) => assignment.location,
+  )
   facility_timeslot_assignments: FacilityTimeslotAssignment[];
 
   @OneToMany(() => HandheldDevice, (device) => device.location)
@@ -274,7 +278,10 @@ export class Location {
 }
 
 @Entity('facility_timeslot_assignments')
-@Unique('UQ_facility_timeslot_assignments_unique', ['facility_id', 'timeslot_id'])
+@Unique('UQ_facility_timeslot_assignments_unique', [
+  'facility_id',
+  'timeslot_id',
+])
 export class FacilityTimeslotAssignment {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -285,9 +292,13 @@ export class FacilityTimeslotAssignment {
   @Column()
   timeslot_id: string;
 
-  @ManyToOne(() => Location, (location) => location.facility_timeslot_assignments, {
-    onDelete: 'CASCADE',
-  })
+  @ManyToOne(
+    () => Location,
+    (location) => location.facility_timeslot_assignments,
+    {
+      onDelete: 'CASCADE',
+    },
+  )
   @JoinColumn({ name: 'facility_id' })
   location: Location;
 
@@ -301,10 +312,12 @@ export class FacilityTimeslotAssignment {
 
 @Entity('payment_types')
 @Unique('UQ_payment_types_name', ['name'])
-@Check(
-  'CHK_payment_types_amount_type',
-  `"amount_type" IN ('FIXED', 'DYNAMIC')`,
+@Index(
+  'IDX_payment_types_linked_form_user_type_active',
+  ['linked_form', 'charged_to_user_type_id'],
+  { unique: true, where: `"status" = 'ACTIVE'` },
 )
+@Check('CHK_payment_types_amount_type', `"amount_type" IN ('FIXED', 'DYNAMIC')`)
 export class PaymentType {
   @PrimaryGeneratedColumn('uuid')
   id: string;
