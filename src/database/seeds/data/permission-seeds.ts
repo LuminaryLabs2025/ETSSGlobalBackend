@@ -31,6 +31,13 @@ export const PERMISSION_MODULE_SEEDS: PermissionModuleSeedRow[] = [
     nav_section: null,
   },
   {
+    key: 'incident_reports',
+    name: 'Incident Reports',
+    description: 'Reported incidents and their resolutions',
+    sort_order: 40,
+    nav_section: null,
+  },
+  {
     key: 'bookings',
     name: 'Bookings',
     description: 'Truck and slot bookings',
@@ -168,6 +175,14 @@ export const PERMISSION_SEEDS: PermissionSeedRow[] = [
     { name: 'view_e_revenue', description: 'View e-Revenue screens' },
     { name: 'manage_e_revenue', description: 'Manage e-Revenue records' },
     { name: 'export_e_revenue', description: 'Export e-Revenue data' },
+  ]),
+  ...P('incident_reports', [
+    { name: 'view_incident_reports', description: 'View incident reports' },
+    {
+      name: 'manage_incident_reports',
+      description:
+        'Assign, escalate, set severity/deadlines and approve incident resolutions',
+    },
   ]),
   ...P('bookings', [
     { name: 'view_bookings', description: 'View bookings and manifests' },

@@ -41,6 +41,13 @@ export class Terminal {
   @Column({ type: 'text', nullable: true })
   address: string | null;
 
+  /** WGS84 coordinates for the Traffic Command live-location map. */
+  @Column({ type: 'double precision', nullable: true })
+  latitude: number | null;
+
+  @Column({ type: 'double precision', nullable: true })
+  longitude: number | null;
+
   @Column({ type: 'integer' })
   approved_daily_truck_capacity: number;
 
@@ -97,6 +104,13 @@ export class TransitPark {
 
   @Column({ type: 'text', nullable: true })
   address: string | null;
+
+  /** WGS84 coordinates for the Traffic Command live-location map. */
+  @Column({ type: 'double precision', nullable: true })
+  latitude: number | null;
+
+  @Column({ type: 'double precision', nullable: true })
+  longitude: number | null;
 
   @Column({ type: 'integer' })
   approved_truck_capacity: number;
@@ -163,6 +177,13 @@ export class Facility {
 
   @Column({ type: 'text', nullable: true })
   address: string | null;
+
+  /** WGS84 coordinates for the Traffic Command live-location map. */
+  @Column({ type: 'double precision', nullable: true })
+  latitude: number | null;
+
+  @Column({ type: 'double precision', nullable: true })
+  longitude: number | null;
 
   @Column({ type: 'integer' })
   approved_truck_capacity: number;

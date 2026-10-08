@@ -236,7 +236,8 @@ export class UpdateTepTypeDto {
   @ApiPropertyOptional({
     type: [String],
     format: 'uuid',
-    description: 'Replace linked truck types. Can be sent alone (without name).',
+    description:
+      'Replace linked truck types. Can be sent alone (without name).',
   })
   @IsOptional()
   @IsArray()
@@ -373,7 +374,63 @@ export class UpdateFacilityTimeslotAssignmentDto {
   is_active: boolean;
 }
 
-export class CreatePaymentTypeDto {
+/**
+ * Revenue recipients for a payment type, as % of each payment. Must total
+ * exactly 100. Omit all five on create for 100% Maritime-ETSS; on update,
+ * omitted fields keep their current value.
+ */
+export class PaymentTypeRevenueSplitDto {
+  @ApiPropertyOptional({
+    example: 100,
+    description: '% to the Facility the payment relates to',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(100)
+  facility_percentage?: number;
+
+  @ApiPropertyOptional({
+    example: 0,
+    description: '% to the Transit Park / Pregate / EPT the payment relates to',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(100)
+  transit_park_percentage?: number;
+
+  @ApiPropertyOptional({ example: 0, description: '% to NPA' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(100)
+  npa_percentage?: number;
+
+  @ApiPropertyOptional({ example: 0, description: '% to Maritime-ETSS' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(100)
+  etss_percentage?: number;
+
+  @ApiPropertyOptional({
+    example: 0,
+    description: '% to the assigned Tow Truck Company',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(100)
+  tow_company_percentage?: number;
+}
+
+export class CreatePaymentTypeDto extends PaymentTypeRevenueSplitDto {
   @IsString()
   @IsNotEmpty()
   name: string;
@@ -408,7 +465,7 @@ export class CreatePaymentTypeDto {
   status?: string;
 }
 
-export class UpdatePaymentTypeDto {
+export class UpdatePaymentTypeDto extends PaymentTypeRevenueSplitDto {
   @IsOptional()
   @IsString()
   @IsNotEmpty()

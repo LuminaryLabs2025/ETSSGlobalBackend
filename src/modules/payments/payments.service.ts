@@ -13,6 +13,7 @@ import {
   PaymentTransaction,
   PaymentWebhookEvent,
 } from '../../database/entities';
+import { FeeBreakdownLine } from '../../database/entities/payments.entities';
 import {
   nextSequentialCode,
   paginateQueryBuilder,
@@ -48,6 +49,21 @@ export interface PayableSyncHandler {
   }): Promise<void>;
 }
 
+/**
+ * Notified whenever a PaymentTransaction is created or changes status
+ * (PENDING → SUCCESSFUL / FAILED / ABANDONED), for every payable_type. Used
+ * by the e-Revenue ledger. Runs inside the caller's DB transaction under a
+ * SAVEPOINT — an observer failure is logged and rolled back on its own and
+ * can never undo the payment state change it was observing.
+ */
+export interface PaymentTransactionObserver {
+  onTransactionChanged(params: {
+    manager: EntityManager;
+    invoice: Invoice;
+    transaction: PaymentTransaction;
+  }): Promise<void>;
+}
+
 export interface CreateInvoiceParams {
   payableType: string;
   payableId: string;
@@ -61,7 +77,7 @@ export interface CreateInvoiceParams {
   feeConfigured: boolean;
   currency?: string;
   description: string;
-  feeBreakdown?: { name: string; amount: number }[];
+  feeBreakdown?: FeeBreakdownLine[];
   issuedByUserId?: string | null;
 }
 
@@ -69,6 +85,7 @@ export interface CreateInvoiceParams {
 export class PaymentsService {
   private readonly logger = new Logger(PaymentsService.name);
   private readonly payableHandlers = new Map<string, PayableSyncHandler>();
+  private readonly transactionObservers: PaymentTransactionObserver[] = [];
 
   constructor(
     @InjectDataSource() private readonly dataSource: DataSource,
@@ -83,6 +100,10 @@ export class PaymentsService {
 
   registerPayableSyncHandler(payableType: string, handler: PayableSyncHandler) {
     this.payableHandlers.set(payableType, handler);
+  }
+
+  registerTransactionObserver(observer: PaymentTransactionObserver) {
+    this.transactionObservers.push(observer);
   }
 
   get publicKey(): string {
@@ -173,6 +194,11 @@ export class PaymentsService {
     if (pending) {
       pending.status = 'ABANDONED';
       await txRepo.save(pending);
+      await this.notifyTransactionObservers(
+        manager ?? this.dataSource.manager,
+        invoice,
+        pending,
+      );
     }
   }
 
@@ -238,6 +264,7 @@ export class PaymentsService {
       if (existing) {
         existing.status = 'ABANDONED';
         await txRepo.save(existing);
+        await this.notifyTransactionObservers(manager, invoice, existing);
       }
 
       const reference = this.generateReference();
@@ -252,6 +279,7 @@ export class PaymentsService {
         initiated_by: params.initiatedByUserId ?? null,
       });
       const saved = await txRepo.save(placeholder);
+      await this.notifyTransactionObservers(manager, invoice, saved);
       return { kind: 'created' as const, transaction: saved, invoice };
     });
 
@@ -291,6 +319,11 @@ export class PaymentsService {
       created.gateway_response =
         error instanceof Error ? error.message : 'Paystack initialize failed';
       await this.transactionRepository.save(created);
+      await this.notifyTransactionObservers(
+        this.dataSource.manager,
+        invoice,
+        created,
+      );
       throw error;
     }
   }
@@ -420,6 +453,7 @@ export class PaymentsService {
         });
         if (invoice) {
           await this.syncPayable(manager, invoice, transaction, 'FAILED');
+          await this.notifyTransactionObservers(manager, invoice, transaction);
         }
         this.logger.warn(
           `Transaction ${reference} finalized as FAILED via ${source} (paystack status=${paystackData.status})`,
@@ -460,8 +494,35 @@ export class PaymentsService {
       }
 
       await this.syncPayable(manager, invoice, transaction, outcome);
+      await this.notifyTransactionObservers(manager, invoice, transaction);
       return transaction;
     });
+  }
+
+  private async notifyTransactionObservers(
+    manager: EntityManager,
+    invoice: Invoice,
+    transaction: PaymentTransaction,
+  ) {
+    if (!this.transactionObservers.length) return;
+    const inTransaction = manager.queryRunner?.isTransactionActive ?? false;
+    for (const observer of this.transactionObservers) {
+      try {
+        if (inTransaction) await manager.query('SAVEPOINT payment_observer');
+        await observer.onTransactionChanged({ manager, invoice, transaction });
+        if (inTransaction) {
+          await manager.query('RELEASE SAVEPOINT payment_observer');
+        }
+      } catch (error) {
+        if (inTransaction) {
+          await manager.query('ROLLBACK TO SAVEPOINT payment_observer');
+        }
+        this.logger.error(
+          `Payment transaction observer failed for ${transaction.reference}`,
+          error as Error,
+        );
+      }
+    }
   }
 
   private async syncPayable(

@@ -35,6 +35,8 @@ import {
   requireEntity,
   toCsv,
 } from '../../common/utils/query-helpers';
+import { FeeBreakdownLine } from '../../database/entities/payments.entities';
+import { paymentTypeSplit } from '../e-revenue/e-revenue.constants';
 import {
   PaymentFinalizeOutcome,
   PayableSyncHandler,
@@ -56,6 +58,13 @@ import {
 } from './bookings-priority.util';
 
 type ActorUser = { first_name?: string; last_name?: string; email?: string };
+
+/** Lets Traffic Command barrier tags drive the stage at the tag's own time/actor. */
+export type StageTransitionOptions = {
+  at?: Date;
+  performedBy?: string;
+  notes?: string;
+};
 
 const RELATIONS = [
   'timeline',
@@ -779,9 +788,12 @@ export class BookingsService implements OnModuleInit, PayableSyncHandler {
     const rows = await this.paymentTypeRepository.find({
       where: { linked_form: linkedForm, status: 'ACTIVE' },
     });
-    const lines = rows.map((row) => ({
+    const lines: FeeBreakdownLine[] = rows.map((row) => ({
       name: row.name,
       amount: row.amount_type === 'FIXED' ? Number(row.amount ?? 0) : 0,
+      payment_type_id: row.id,
+      service_name: row.service_name,
+      split: paymentTypeSplit(row),
     }));
     const total = lines.reduce((sum, line) => sum + line.amount, 0);
     return { fee_configured: rows.length > 0, total, lines };
@@ -1333,6 +1345,128 @@ export class BookingsService implements OnModuleInit, PayableSyncHandler {
   }
 
   // ─────────────────────────────────────────────────────────────────────
+  // Post-GTG movement — set manually here or automatically by Traffic
+  // Command barrier tags (EXIT at the facility/EPT/pregate, ENTRY at the
+  // destination terminal). Drive the Live Truck Updates "Enroute Pregate",
+  // "Enroute Terminal" and "In-Terminal" stages.
+  // ─────────────────────────────────────────────────────────────────────
+
+  async markLeftFacility(
+    id: string,
+    user?: ActorUser,
+    opts: StageTransitionOptions = {},
+  ) {
+    const booking = await requireEntity(
+      this.bookingRepository,
+      id,
+      'Booking not found',
+    );
+    if (booking.status !== 'LIVE') {
+      throw new BadRequestException('Only LIVE bookings can leave a facility');
+    }
+    if (!booking.gtg_facility_at) {
+      throw new BadRequestException(
+        'Booking must be GTG-Facility before it can leave the facility',
+      );
+    }
+    if (booking.left_facility_at) {
+      throw new BadRequestException('Booking has already left the facility');
+    }
+    booking.left_facility_at = opts.at ?? new Date();
+    await this.bookingRepository.save(booking);
+    await this.setTruckAndDriverStatus(booking, 'LEFT_FACILITY', 'ON_TRIP');
+    await this.appendTimeline(
+      booking.id,
+      'LEFT_FACILITY',
+      opts.performedBy ?? this.actorName(user),
+      opts.notes ?? 'Truck exited the facility, en route to the Pregate.',
+    );
+    return this.findBooking(id);
+  }
+
+  async markLeftPregate(
+    id: string,
+    user?: ActorUser,
+    opts: StageTransitionOptions = {},
+  ) {
+    const booking = await requireEntity(
+      this.bookingRepository,
+      id,
+      'Booking not found',
+    );
+    if (booking.status !== 'LIVE') {
+      throw new BadRequestException('Only LIVE bookings can leave a Pregate');
+    }
+    if (!booking.gtg_pregate_at) {
+      throw new BadRequestException(
+        'Booking must be GTG-Pregate before it can leave the Pregate',
+      );
+    }
+    if (booking.left_pregate_at) {
+      throw new BadRequestException('Booking has already left the Pregate');
+    }
+    booking.left_pregate_at = opts.at ?? new Date();
+    // Today's Manifest lists LEFT-PREGATE trucks (IN_MANIFEST).
+    booking.manifest_status = booking.manifest_status ?? 'IN_MANIFEST';
+    await this.bookingRepository.save(booking);
+    await this.setTruckAndDriverStatus(booking, 'LEFT_PREGATE', 'ON_TRIP');
+    await this.appendTimeline(
+      booking.id,
+      'LEFT_PREGATE',
+      opts.performedBy ?? this.actorName(user),
+      opts.notes ?? 'Truck exited the Pregate, en route to the terminal.',
+    );
+    return this.findBooking(id);
+  }
+
+  async markInTerminal(
+    id: string,
+    user?: ActorUser,
+    opts: StageTransitionOptions = {},
+  ) {
+    const booking = await requireEntity(
+      this.bookingRepository,
+      id,
+      'Booking not found',
+    );
+    if (booking.status !== 'LIVE') {
+      throw new BadRequestException('Only LIVE bookings can enter a terminal');
+    }
+    if (booking.in_terminal_at) {
+      throw new BadRequestException('Booking is already marked in-terminal');
+    }
+    booking.in_terminal_at = opts.at ?? new Date();
+    await this.bookingRepository.save(booking);
+    await this.setTruckAndDriverStatus(booking, 'IN_TERMINAL', 'IN_TERMINAL');
+    await this.appendTimeline(
+      booking.id,
+      'IN_TERMINAL',
+      opts.performedBy ?? this.actorName(user),
+      opts.notes ?? 'Truck arrived at the destination terminal.',
+    );
+    return this.findBooking(id);
+  }
+
+  private async setTruckAndDriverStatus(
+    booking: Booking,
+    truckStatus: string,
+    driverStatus: string,
+  ) {
+    if (booking.truck_id) {
+      await this.truckRepository.update(
+        { id: booking.truck_id },
+        { truck_status: truckStatus },
+      );
+    }
+    if (booking.driver_ref_id) {
+      await this.driverRepository.update(
+        { id: booking.driver_ref_id },
+        { operational_status: driverStatus },
+      );
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────
 
   private applyBookingFilters(
     qb: SelectQueryBuilder<Booking>,
@@ -1622,6 +1756,10 @@ export class BookingsService implements OnModuleInit, PayableSyncHandler {
       response.gtg_facility_at = booking.gtg_facility_at;
     if (booking.gtg_pregate_at)
       response.gtg_pregate_at = booking.gtg_pregate_at;
+    if (booking.left_facility_at)
+      response.left_facility_at = booking.left_facility_at;
+    if (booking.in_terminal_at)
+      response.in_terminal_at = booking.in_terminal_at;
     if (booking.payment_method)
       response.payment_method = booking.payment_method;
     if (booking.booking_fee) response.booking_fee = Number(booking.booking_fee);

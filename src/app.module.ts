@@ -25,6 +25,9 @@ import { BookingsModule } from './modules/bookings/bookings.module';
 import { UtilityTicketsModule } from './modules/utility-tickets/utility-tickets.module';
 import { KeepAliveModule } from './modules/keep-alive/keep-alive.module';
 import { PaymentsModule } from './modules/payments/payments.module';
+import { ERevenueModule } from './modules/e-revenue/e-revenue.module';
+import { TrafficCommandModule } from './modules/traffic-command/traffic-command.module';
+import { IncidentsModule } from './modules/incidents/incidents.module';
 
 @Module({
   imports: [
@@ -53,6 +56,9 @@ import { PaymentsModule } from './modules/payments/payments.module';
     PaymentsModule,
     BookingsModule,
     UtilityTicketsModule,
+    ERevenueModule,
+    TrafficCommandModule,
+    IncidentsModule,
     KeepAliveModule,
   ],
   providers: [

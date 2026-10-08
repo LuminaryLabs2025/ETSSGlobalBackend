@@ -74,6 +74,15 @@ import {
   UpdateTruckTypeDto,
 } from './dto/app-options.dto';
 
+const REVENUE_SPLIT_FIELDS = [
+  'facility_percentage',
+  'transit_park_percentage',
+  'npa_percentage',
+  'etss_percentage',
+  'tow_company_percentage',
+] as const;
+type RevenueSplitField = (typeof REVENUE_SPLIT_FIELDS)[number];
+
 @Injectable()
 export class AppOptionsService {
   constructor(
@@ -707,9 +716,15 @@ export class AppOptionsService {
       'Charged-to user type not found',
     );
     this.validatePaymentAmount(dto.amount_type, dto.amount);
+    const anySplit = REVENUE_SPLIT_FIELDS.some((f) => dto[f] !== undefined);
+    const split = this.resolveRevenueSplit(
+      dto,
+      anySplit ? undefined : { etss_percentage: 100 },
+    );
 
     const payload = {
       ...dto,
+      ...split,
       amount: dto.amount_type === 'DYNAMIC' ? null : dto.amount,
       status: dto.status ?? 'ACTIVE',
     };
@@ -763,6 +778,9 @@ export class AppOptionsService {
 
     const payload: Record<string, unknown> = this.cleanUndefined(dto);
     if (nextType === 'DYNAMIC') payload.amount = null;
+    if (REVENUE_SPLIT_FIELDS.some((f) => dto[f] !== undefined)) {
+      Object.assign(payload, this.resolveRevenueSplit(dto, current));
+    }
 
     return this.updateEntity(
       this.paymentTypeRepository,
@@ -1160,6 +1178,28 @@ export class AppOptionsService {
         });
       }
     });
+  }
+
+  /** Merges the 5 recipient % over `base` (current row on update) and requires a 100% total. */
+  private resolveRevenueSplit(
+    dto: Partial<Record<RevenueSplitField, number>>,
+    base?: Partial<Record<RevenueSplitField, number | string>>,
+  ): Record<RevenueSplitField, string> {
+    const values = Object.fromEntries(
+      REVENUE_SPLIT_FIELDS.map((f) => [f, Number(dto[f] ?? base?.[f] ?? 0)]),
+    ) as Record<RevenueSplitField, number>;
+    const total =
+      Math.round(
+        REVENUE_SPLIT_FIELDS.reduce((acc, f) => acc + values[f], 0) * 100,
+      ) / 100;
+    if (total !== 100) {
+      throw new BadRequestException(
+        `Revenue recipient percentages must total 100% (currently ${total}%)`,
+      );
+    }
+    return Object.fromEntries(
+      REVENUE_SPLIT_FIELDS.map((f) => [f, values[f].toFixed(2)]),
+    ) as Record<RevenueSplitField, string>;
   }
 
   private validatePaymentAmount(amountType: string, amount?: number) {

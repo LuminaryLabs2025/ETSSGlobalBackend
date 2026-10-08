@@ -3,6 +3,8 @@ import {
   IsArray,
   IsIn,
   IsInt,
+  IsLatitude,
+  IsLongitude,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -91,6 +93,24 @@ export class CreateTerminalDto {
   @IsString()
   address?: string;
 
+  @ApiPropertyOptional({
+    example: 6.4474,
+    description: 'WGS84 latitude (Traffic Command map)',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsLatitude()
+  latitude?: number;
+
+  @ApiPropertyOptional({
+    example: 3.3903,
+    description: 'WGS84 longitude (Traffic Command map)',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsLongitude()
+  longitude?: number;
+
   @Type(() => Number)
   @IsInt()
   @Min(0)
@@ -162,6 +182,24 @@ export class UpdateTerminalDto {
   @IsOptional()
   @IsString()
   address?: string;
+
+  @ApiPropertyOptional({
+    example: 6.4474,
+    description: 'WGS84 latitude (Traffic Command map)',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsLatitude()
+  latitude?: number;
+
+  @ApiPropertyOptional({
+    example: 3.3903,
+    description: 'WGS84 longitude (Traffic Command map)',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsLongitude()
+  longitude?: number;
 
   @IsOptional()
   @Type(() => Number)
@@ -240,6 +278,24 @@ export class CreateTransitParkDto {
   @IsString()
   address?: string;
 
+  @ApiPropertyOptional({
+    example: 6.4474,
+    description: 'WGS84 latitude (Traffic Command map)',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsLatitude()
+  latitude?: number;
+
+  @ApiPropertyOptional({
+    example: 3.3903,
+    description: 'WGS84 longitude (Traffic Command map)',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsLongitude()
+  longitude?: number;
+
   @Type(() => Number)
   @IsInt()
   @Min(0)
@@ -303,6 +359,24 @@ export class UpdateTransitParkDto {
   @IsOptional()
   @IsString()
   address?: string;
+
+  @ApiPropertyOptional({
+    example: 6.4474,
+    description: 'WGS84 latitude (Traffic Command map)',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsLatitude()
+  latitude?: number;
+
+  @ApiPropertyOptional({
+    example: 3.3903,
+    description: 'WGS84 longitude (Traffic Command map)',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsLongitude()
+  longitude?: number;
 
   @IsOptional()
   @Type(() => Number)
@@ -371,6 +445,24 @@ export class CreateFacilityDto {
   @IsOptional()
   @IsString()
   address?: string;
+
+  @ApiPropertyOptional({
+    example: 6.4474,
+    description: 'WGS84 latitude (Traffic Command map)',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsLatitude()
+  latitude?: number;
+
+  @ApiPropertyOptional({
+    example: 3.3903,
+    description: 'WGS84 longitude (Traffic Command map)',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsLongitude()
+  longitude?: number;
 
   @Type(() => Number)
   @IsInt()
@@ -446,6 +538,24 @@ export class UpdateFacilityDto {
   @IsOptional()
   @IsString()
   address?: string;
+
+  @ApiPropertyOptional({
+    example: 6.4474,
+    description: 'WGS84 latitude (Traffic Command map)',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsLatitude()
+  latitude?: number;
+
+  @ApiPropertyOptional({
+    example: 3.3903,
+    description: 'WGS84 longitude (Traffic Command map)',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsLongitude()
+  longitude?: number;
 
   @IsOptional()
   @Type(() => Number)

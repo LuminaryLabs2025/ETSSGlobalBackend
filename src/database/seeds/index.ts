@@ -14,6 +14,7 @@ import { runUserTypePermissionsSeed } from './runners/user-type-permissions.runn
 import { runSuperAdminSeed } from './runners/super-admin.runner';
 import { backfillUserPermissionsFromTypes } from './runners/backfill-user-permissions.runner';
 import { runAppOptionsSeed } from './runners/app-options.runner';
+import { runFeeScheduleSeed } from './runners/fee-schedule.runner';
 import { runTerminalsParksFacilitiesSeed } from './runners/terminals-parks-facilities.runner';
 import { runOperationsSeed } from './runners/operations.runner';
 import { runSprint3Seed } from './runners/sprint3.runner';
@@ -37,6 +38,7 @@ async function runAllSeeds(): Promise<void> {
     await runSuperAdminSeed(dataSource, userTypeMap);
     await backfillUserPermissionsFromTypes(dataSource);
     await runAppOptionsSeed(dataSource);
+    await runFeeScheduleSeed(dataSource, userTypeMap);
     await runTerminalsParksFacilitiesSeed(dataSource);
     await runOperationsSeed(dataSource, userTypeMap);
     await runSprint3Seed(dataSource);

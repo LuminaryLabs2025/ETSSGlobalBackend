@@ -53,6 +53,12 @@ export class TerminalDto {
   @ApiProperty({ nullable: true })
   address: string | null;
 
+  @ApiProperty({ nullable: true, example: 6.4474 })
+  latitude: number | null;
+
+  @ApiProperty({ nullable: true, example: 3.3903 })
+  longitude: number | null;
+
   @ApiProperty()
   approved_daily_truck_capacity: number;
 
@@ -168,6 +174,12 @@ export class TransitParkDto {
   @ApiProperty({ nullable: true })
   address: string | null;
 
+  @ApiProperty({ nullable: true, example: 6.4474 })
+  latitude: number | null;
+
+  @ApiProperty({ nullable: true, example: 3.3903 })
+  longitude: number | null;
+
   @ApiProperty()
   approved_truck_capacity: number;
 
@@ -273,6 +285,12 @@ export class FacilityDto {
 
   @ApiProperty({ nullable: true })
   address: string | null;
+
+  @ApiProperty({ nullable: true, example: 6.4474 })
+  latitude: number | null;
+
+  @ApiProperty({ nullable: true, example: 3.3903 })
+  longitude: number | null;
 
   @ApiProperty()
   approved_truck_capacity: number;

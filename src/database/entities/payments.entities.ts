@@ -14,6 +14,28 @@ import {
 import { User } from './user.entity';
 
 /**
+ * One invoice fee line, snapshotted from its PaymentType when the invoice
+ * is raised (so later price/split edits never rewrite past revenue).
+ * `split` is the revenue-recipient % for this line; absent on invoices
+ * raised before the e-Revenue fee schedule existed.
+ */
+export interface FeeBreakdownLine {
+  name: string;
+  amount: number;
+  payment_type_id?: string;
+  service_name?: string;
+  split?: RevenueSplit;
+}
+
+export interface RevenueSplit {
+  facility: number;
+  transit_park: number;
+  npa: number;
+  etss: number;
+  tow_company: number;
+}
+
+/**
  * What's owed for a payable record in the system. `payable_type`/`payable_id`
  * is a soft polymorphic reference (same pattern as IssuedFine's denormalized
  * `booking_reference` snapshot elsewhere in this codebase) since Postgres
@@ -56,7 +78,7 @@ export class Invoice {
    * catalog edit never retroactively changes a historical invoice.
    */
   @Column({ type: 'jsonb', nullable: true })
-  fee_breakdown: { name: string; amount: number }[] | null;
+  fee_breakdown: FeeBreakdownLine[] | null;
 
   @Column({ type: 'uuid', nullable: true })
   issued_by: string | null;

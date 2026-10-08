@@ -326,6 +326,42 @@ export class BookingsController {
     );
   }
 
+  @Patch(':id/mark-left-facility')
+  @ApiOkResponse({ type: BookingResponseDto })
+  async markLeftFacility(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: CurrentUserPayload,
+  ) {
+    return this.ok(
+      'Booking marked left-facility',
+      await this.bookingsService.markLeftFacility(id, user),
+    );
+  }
+
+  @Patch(':id/mark-left-pregate')
+  @ApiOkResponse({ type: BookingResponseDto })
+  async markLeftPregate(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: CurrentUserPayload,
+  ) {
+    return this.ok(
+      'Booking marked left-pregate',
+      await this.bookingsService.markLeftPregate(id, user),
+    );
+  }
+
+  @Patch(':id/mark-in-terminal')
+  @ApiOkResponse({ type: BookingResponseDto })
+  async markInTerminal(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: CurrentUserPayload,
+  ) {
+    return this.ok(
+      'Booking marked in-terminal',
+      await this.bookingsService.markInTerminal(id, user),
+    );
+  }
+
   @Get('queue/facility')
   @ApiOkResponse({
     description: 'Paginated, ordered release queue for a facility or EPT',

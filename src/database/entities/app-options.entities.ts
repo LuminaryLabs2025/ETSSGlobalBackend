@@ -310,14 +310,26 @@ export class FacilityTimeslotAssignment {
   is_active: boolean;
 }
 
+/**
+ * A chargeable use case (e-Revenue fee schedule): what it costs, who pays
+ * it, which form/event raises it, and how the money is split between the
+ * revenue recipients. Several ACTIVE payment types may share a linked form
+ * (e.g. a Bonded Terminal booking = "Facility Bay" + "Matching Fee") — the
+ * form's invoice is the sum of them, one fee line each — but only one per
+ * service_name, so a service can't be double-charged.
+ */
 @Entity('payment_types')
 @Unique('UQ_payment_types_name', ['name'])
 @Index(
-  'IDX_payment_types_linked_form_user_type_active',
-  ['linked_form', 'charged_to_user_type_id'],
+  'IDX_payment_types_linked_form_service_active',
+  ['linked_form', 'charged_to_user_type_id', 'service_name'],
   { unique: true, where: `"status" = 'ACTIVE'` },
 )
 @Check('CHK_payment_types_amount_type', `"amount_type" IN ('FIXED', 'DYNAMIC')`)
+@Check(
+  'CHK_payment_types_revenue_split',
+  `"facility_percentage" + "transit_park_percentage" + "npa_percentage" + "etss_percentage" + "tow_company_percentage" = 100`,
+)
 export class PaymentType {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -346,6 +358,23 @@ export class PaymentType {
 
   @Column({ type: 'numeric', precision: 14, scale: 2, nullable: true })
   amount: number | null;
+
+  // ── Revenue recipients (% of each payment; must total 100) ──
+  @Column({ type: 'numeric', precision: 5, scale: 2, default: 0 })
+  facility_percentage: string;
+
+  /** Transit Park / Pregate / EPT the payment relates to. */
+  @Column({ type: 'numeric', precision: 5, scale: 2, default: 0 })
+  transit_park_percentage: string;
+
+  @Column({ type: 'numeric', precision: 5, scale: 2, default: 0 })
+  npa_percentage: string;
+
+  @Column({ type: 'numeric', precision: 5, scale: 2, default: 100 })
+  etss_percentage: string;
+
+  @Column({ type: 'numeric', precision: 5, scale: 2, default: 0 })
+  tow_company_percentage: string;
 
   @Column({ default: 'ACTIVE' })
   status: string;

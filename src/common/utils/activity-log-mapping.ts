@@ -19,6 +19,10 @@ const MODULE_BY_SEGMENT: Record<string, string> = {
   dttr: 'DTTR',
   bookings: 'Bookings',
   'utility-tickets': 'Utility Tickets',
+  'e-revenue': 'e-Revenue',
+  'traffic-command': 'Traffic Command',
+  incidents: 'Incident Reports',
+  'incident-reports': 'Incident Reports',
 };
 
 export type ActivityContext = {
@@ -46,6 +50,11 @@ const IMPORTANT_ROOTS = new Set([
   'dttr',
   'bookings',
   'utility-tickets',
+  'e-revenue',
+  // traffic-command omitted: barrier tags are high-volume machine traffic
+  // (the booking stage changes they cause are logged on the booking timeline).
+  'incidents',
+  'incident-reports',
 ]);
 
 function titleCaseSegment(seg: string): string {
@@ -61,7 +70,9 @@ export function parseApiSegments(pathWithoutQuery: string): string[] {
   return apiIdx >= 0 ? segments.slice(apiIdx + 1) : segments;
 }
 
-export function extractEntityIdFromPath(pathWithoutQuery: string): string | null {
+export function extractEntityIdFromPath(
+  pathWithoutQuery: string,
+): string | null {
   const matches = pathWithoutQuery.match(UUID_RE);
   if (!matches?.length) return null;
   return matches[matches.length - 1] ?? null;
@@ -122,6 +133,10 @@ export function inferHttpActivityContext(
     actionLabel = `${httpMethodToAction(method)} booking`;
   } else if (root === 'utility-tickets') {
     actionLabel = `${httpMethodToAction(method)} utility ticket`;
+  } else if (root === 'e-revenue') {
+    actionLabel = `${httpMethodToAction(method)} e-Revenue ledger`;
+  } else if (root === 'incidents' || root === 'incident-reports') {
+    actionLabel = `${httpMethodToAction(method)} incident`;
   } else {
     actionLabel = `${httpMethodToAction(method)} system`;
     shouldLog = false;

@@ -70,3 +70,11 @@ export {
   PaymentTransaction,
   PaymentWebhookEvent,
 } from './payments.entities';
+export { RevenueTransaction } from './e-revenue.entities';
+export { BarrierTagEvent } from './traffic-command.entities';
+export {
+  Incident,
+  IncidentEvidence,
+  IncidentEvent,
+  IncidentNote,
+} from './incidents.entities';

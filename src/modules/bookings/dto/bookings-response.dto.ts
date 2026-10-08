@@ -303,6 +303,12 @@ export class BookingDto {
   @ApiPropertyOptional()
   gtg_pregate_at?: Date | null;
 
+  @ApiPropertyOptional()
+  left_facility_at?: Date | null;
+
+  @ApiPropertyOptional()
+  in_terminal_at?: Date | null;
+
   @ApiProperty({ enum: ['PENDING', 'PAID', 'FAILED'] })
   payment_status: string;
 
