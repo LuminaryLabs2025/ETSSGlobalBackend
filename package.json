@@ -20,6 +20,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "seed": "ts-node -r tsconfig-paths/register src/database/seeds/index.ts",
     "seed:prod": "node dist/database/seeds/index.js",
+    "seed:demo": "ts-node -r tsconfig-paths/register src/database/seeds/demo-data.ts",
     "seed:docker": "sh scripts/docker-seed.sh",
     "seed:docker:compose": "docker compose --profile seed run --rm seed",
     "typeorm": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js",

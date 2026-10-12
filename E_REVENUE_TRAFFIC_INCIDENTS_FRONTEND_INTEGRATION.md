@@ -301,3 +301,18 @@ Any logged-in user can call these, subject to the access rules in each row.
 
 - **Migration:** `1763000000000-e-revenue-traffic-command-incidents` creates the new tables and columns, adds the recipient split to `payment_types` (existing rows default to 100% Maritime-ETSS), and lets a form carry several active fee lines.
 - **After deploy:** run `npm run seed` to add the `incident_reports` permissions and the PO fee schedule, then call `POST /api/e-revenue/ledger/sync` once to backfill revenue from past payments.
+
+## Demo data
+
+`npm run seed:demo` (already run on the shared dev database) fills these screens with records created through the real services. It's safe to re-run: sections already seeded are skipped.
+
+What it creates:
+- **Fee schedule switched to the PO sheet.** On the booking forms, the PO fee schedule is active and the old single booking fees are deactivated. Revert this in App Options → Payment Types if needed.
+- **Map coordinates** on every terminal, transit park and facility.
+- **25 bookings paid over the last 30 days**, with `MTMS-DEMO-…` references. Most payments are successful; some are failed, pending or abandoned. 20 bookings are completed; 5 are LIVE at in-facility, matched, GTG and in-pregate stages.
+- **Barrier tags** at the barrier-linked facilities, with synthetic `DMO…` plates, feeding tagged-per-hour and ATAT.
+- **8 incidents across every status**, reported by demo PRIMARY accounts (`demo.*@example.com`, which can't sign in) and assigned to the demo tow company **RapidTow Nigeria**.
+
+> **Tow truck company tab is empty.** No tow truck payment flow exists yet, so this tab and the tow, utility, penalty and demurrage cards show 0.
+>
+> **Map tags age out.** "Trucks tagged per hour" only counts the last 60 minutes, so re-run the barrier-tag section, or post new tags, to see it non-zero.
