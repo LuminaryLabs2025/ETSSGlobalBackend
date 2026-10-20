@@ -38,5 +38,6 @@ import { OccService } from './occ.service';
   ],
   controllers: [TrafficCommandController],
   providers: [LiveTrucksService, LiveLocationsService, OccService],
+  exports: [LiveTrucksService, LiveLocationsService],
 })
 export class TrafficCommandModule {}

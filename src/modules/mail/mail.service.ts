@@ -44,7 +44,8 @@ export class MailService {
     });
     this.from =
       config.get<string>('SMTP_FROM') || `"Maritime ETSS" <noreply@etss.local>`;
-    this.smtpRedirectTo = config.get<string>('SMTP_REDIRECT_TO')?.trim() || undefined;
+    this.smtpRedirectTo =
+      config.get<string>('SMTP_REDIRECT_TO')?.trim() || undefined;
     if (this.smtpRedirectTo) {
       this.logger.warn(
         `SMTP_REDIRECT_TO is set (${this.smtpRedirectTo}) — all mail envelopes go there; templates still show the intended recipient.`,
@@ -113,6 +114,38 @@ ${inviteLink}
     const subject = 'Your Maritime ETSS verification code';
     const text = `Use this verification code to complete your sign in:\n\n${code}\n\nThis code expires in 10 minutes.`;
     const html = `<p>Use this verification code to complete your sign in:</p><p><strong>${this.escapeHtml(code)}</strong></p><p>This code expires in 10 minutes.</p>`;
+    await this.send({ to, subject, text, html });
+  }
+
+  /** Operations Command & Control order authorised / lifted — to LASTMA and Ops Control. */
+  async sendOpsCommandOrderEmail(
+    to: string,
+    order: {
+      referenceId: string;
+      title: string;
+      event: 'AUTHORISED' | 'LIFTED';
+      actorName: string;
+      at: Date;
+      targets: string[];
+      reason?: string | null;
+      notes?: string | null;
+    },
+  ): Promise<void> {
+    const verb = order.event === 'AUTHORISED' ? 'authorised' : 'lifted';
+    const subject = `[${order.referenceId}] ${order.title} — ${verb}`;
+    const lines = [
+      `Order: ${order.title} (${order.referenceId})`,
+      `Status: ${order.event === 'AUTHORISED' ? 'ACTIVE' : 'LIFTED'}`,
+      `${order.event === 'AUTHORISED' ? 'Authorised' : 'Lifted'} by: ${order.actorName}`,
+      `Time: ${order.at.toISOString()}`,
+      ...(order.targets.length
+        ? [`Applies to: ${order.targets.join(', ')}`]
+        : []),
+      ...(order.reason ? [`Reason: ${order.reason}`] : []),
+      ...(order.notes ? [`Notes: ${order.notes}`] : []),
+    ];
+    const text = `${lines.join('\n')}\n\n— Maritime ETSS Operations Command`;
+    const html = `${lines.map((l) => `<p>${this.escapeHtml(l)}</p>`).join('')}<p>— Maritime ETSS Operations Command</p>`;
     await this.send({ to, subject, text, html });
   }
 

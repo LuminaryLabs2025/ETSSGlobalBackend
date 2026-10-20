@@ -78,3 +78,4 @@ export {
   IncidentEvent,
   IncidentNote,
 } from './incidents.entities';
+export { OpsCommandOrder } from './ops-command.entities';
