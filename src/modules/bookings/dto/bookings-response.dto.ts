@@ -309,6 +309,9 @@ export class BookingDto {
   @ApiPropertyOptional()
   in_terminal_at?: Date | null;
 
+  @ApiPropertyOptional()
+  left_terminal_at?: Date | null;
+
   @ApiProperty({ enum: ['PENDING', 'PAID', 'FAILED'] })
   payment_status: string;
 

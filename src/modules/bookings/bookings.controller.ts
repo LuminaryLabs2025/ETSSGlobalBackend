@@ -362,6 +362,18 @@ export class BookingsController {
     );
   }
 
+  @Patch(':id/mark-left-terminal')
+  @ApiOkResponse({ type: BookingResponseDto })
+  async markLeftTerminal(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: CurrentUserPayload,
+  ) {
+    return this.ok(
+      'Booking marked left-terminal (completed)',
+      await this.bookingsService.markLeftTerminal(id, user),
+    );
+  }
+
   @Get('queue/facility')
   @ApiOkResponse({
     description: 'Paginated, ordered release queue for a facility or EPT',

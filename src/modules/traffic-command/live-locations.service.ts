@@ -227,7 +227,8 @@ export class LiveLocationsService {
    * LIVE booking, advances the post-GTG stages: EXIT at a Pregate (after
    * GTG-Pregate) → left-pregate; EXIT at the booked facility/EPT (after
    * GTG-Facility) → left-facility; ENTRY at the destination terminal →
-   * in-terminal. Callers: SuperAdmin / manage_traffic_command holders, or
+   * in-terminal; EXIT at the destination terminal → left-terminal (completes
+   * the booking). Callers: SuperAdmin / manage_traffic_command holders, or
    * the user an ACTIVE handheld device on this barrier is assigned to.
    */
   async recordTagEvent(dto: CreateBarrierTagEventDto, actor: TrafficActor) {
@@ -660,6 +661,15 @@ export class LiveLocationsService {
       return null;
     }
 
+    if (
+      link.site_type === 'TERMINAL' &&
+      link.site_id === booking.terminal_id &&
+      booking.in_terminal_at &&
+      !booking.left_terminal_at
+    ) {
+      await this.bookingsService.markLeftTerminal(booking.id, undefined, opts);
+      return 'LEFT_TERMINAL';
+    }
     if (booking.gtg_pregate_at && !booking.left_pregate_at) {
       if (await this.isPregateSite(link)) {
         await this.bookingsService.markLeftPregate(booking.id, undefined, opts);

@@ -285,6 +285,10 @@ export class Booking {
   @Column({ type: 'timestamp', nullable: true })
   in_terminal_at: Date | null;
 
+  /** Truck exited the destination terminal (barrier EXIT tag or manual) — completes the booking. */
+  @Column({ type: 'timestamp', nullable: true })
+  left_terminal_at: Date | null;
+
   @Column({ default: 'PENDING' })
   payment_status: string;
 

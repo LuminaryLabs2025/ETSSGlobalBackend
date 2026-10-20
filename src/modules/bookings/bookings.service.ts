@@ -1449,6 +1449,46 @@ export class BookingsService implements OnModuleInit, PayableSyncHandler {
     return this.findBooking(id);
   }
 
+  /**
+   * Truck exited the destination terminal — the journey is complete, so the
+   * booking moves to COMPLETED and the truck / driver are released.
+   */
+  async markLeftTerminal(
+    id: string,
+    user?: ActorUser,
+    opts: StageTransitionOptions = {},
+  ) {
+    const booking = await requireEntity(
+      this.bookingRepository,
+      id,
+      'Booking not found',
+    );
+    if (booking.status !== 'LIVE') {
+      throw new BadRequestException('Only LIVE bookings can leave a terminal');
+    }
+    if (!booking.in_terminal_at) {
+      throw new BadRequestException(
+        'Booking must be in-terminal before it can leave the terminal',
+      );
+    }
+    if (booking.left_terminal_at) {
+      throw new BadRequestException('Booking has already left the terminal');
+    }
+    const at = opts.at ?? new Date();
+    booking.left_terminal_at = at;
+    booking.completed_at = at;
+    booking.status = 'COMPLETED';
+    await this.bookingRepository.save(booking);
+    await this.setTruckAndDriverStatus(booking, 'LEFT_TERMINAL', 'AVAILABLE');
+    await this.appendTimeline(
+      booking.id,
+      'LEFT_TERMINAL',
+      opts.performedBy ?? this.actorName(user),
+      opts.notes ?? 'Truck exited the terminal — journey complete.',
+    );
+    return this.findBooking(id);
+  }
+
   private async setTruckAndDriverStatus(
     booking: Booking,
     truckStatus: string,
@@ -1762,6 +1802,8 @@ export class BookingsService implements OnModuleInit, PayableSyncHandler {
       response.left_facility_at = booking.left_facility_at;
     if (booking.in_terminal_at)
       response.in_terminal_at = booking.in_terminal_at;
+    if (booking.left_terminal_at)
+      response.left_terminal_at = booking.left_terminal_at;
     if (booking.payment_method)
       response.payment_method = booking.payment_method;
     if (booking.booking_fee) response.booking_fee = Number(booking.booking_fee);
