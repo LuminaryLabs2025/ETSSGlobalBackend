@@ -17,6 +17,9 @@
  * 3. Creates ~24 bookings paid over the last 30 days (mostly successful,
  *    some failed / pending / abandoned) — historical ones are completed
  *    and free their truck again; a few stay LIVE at different stages.
+ *    Then tops up the live board so every Live Truck Updates stage
+ *    (On Trip … In Terminal) has at least STAGE_MIN trucks, adding
+ *    `DEMO-0xx-LG` trucks / "Demo Driver" drivers when none are free.
  * 4. Records barrier tags (entries/exits) for the map's tagged-per-hour/ATAT.
  * 5. Creates a tow truck company, demo PRIMARY reporters and ~10 incidents
  *    across the whole lifecycle.
@@ -54,6 +57,7 @@ import {
   Terminal,
   TransitPark,
   Truck,
+  TruckType,
   User,
   UserType,
 } from '../entities';
@@ -72,6 +76,11 @@ import {
   IncidentActor,
   IncidentsService,
 } from '../../modules/incidents/incidents.service';
+import {
+  LIVE_TRUCK_STAGES,
+  LiveTruckStage,
+  stageSql,
+} from '../../modules/traffic-command/traffic-command.constants';
 
 @Module({
   imports: [
@@ -138,6 +147,7 @@ async function main() {
     await activateFeeSchedule(ds);
     await setCoordinates(ds);
     const demoBookings = await seedRevenue(ds, bookings, ledger, adminActor);
+    await seedStageCoverage(ds, bookings, ledger, adminActor);
     await seedBarrierTags(ds, locations, adminActor);
     await seedIncidents(ds, incidents, adminActor, demoBookings);
     console.log('\n🎉 Demo data ready.');
@@ -609,6 +619,240 @@ async function completeHistorical(ds: DataSource, id: string, paidAt: Date) {
       .getRepository(Driver)
       .update(booking.driver_ref_id, { operational_status: 'AVAILABLE' });
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// 3b. Live board coverage — every Live Truck Updates stage has trucks
+// ─────────────────────────────────────────────────────────────────────────
+
+const STAGE_MIN = 2;
+/** Service calls that move a LIVE booking from On Trip to In Terminal, in order. */
+const JOURNEY_STEPS = [
+  'IN_FACILITY',
+  'MATCHED',
+  'GTG_FACILITY',
+  'LEFT_FACILITY',
+  'IN_PREGATE',
+  'GTG_PREGATE',
+  'LEFT_PREGATE',
+  'IN_TERMINAL',
+] as const;
+
+/**
+ * Tops up any stage with fewer than STAGE_MIN LIVE trucks by booking a free
+ * truck and walking it through the real stage transitions. Re-running only
+ * fills what is still short. GTG is FIFO per facility/EPT and per destination
+ * terminal, so these trucks start where nobody is waiting to be released, and
+ * the furthest stages go first — once released, a site's queue is free again.
+ */
+async function seedStageCoverage(
+  ds: DataSource,
+  bookings: BookingsService,
+  ledger: RevenueLedgerService,
+  admin: { id: string; first_name: string; last_name: string; email: string },
+) {
+  console.log('\n🚚 Live truck stage coverage');
+  const counts = new Map(
+    (
+      await ds.query<{ stage: LiveTruckStage; n: number }[]>(
+        `SELECT ${stageSql('b')} AS stage, COUNT(*)::int AS n
+           FROM bookings b WHERE b.status = 'LIVE' GROUP BY 1`,
+      )
+    ).map((r) => [r.stage, r.n]),
+  );
+  const missing = [...LIVE_TRUCK_STAGES]
+    .reverse()
+    .flatMap((stage) =>
+      Array<LiveTruckStage>(
+        Math.max(0, STAGE_MIN - (counts.get(stage) ?? 0)),
+      ).fill(stage),
+    );
+  if (!missing.length) {
+    console.log(`  ⏭️  Every stage already has ${STAGE_MIN}+ trucks — skipped`);
+    return;
+  }
+
+  // Where a journey can start: a bonded terminal / truck park, or an EPT.
+  const sites = [
+    ...(
+      await ds
+        .getRepository(Facility)
+        .find({ where: { status: 'ACTIVE', archived_at: IsNull() } })
+    )
+      .filter((f) => ['BONDED_TERMINAL', 'TRUCK_PARK'].includes(f.park_type))
+      .map((f) => ({ id: f.id, type: f.park_type })),
+    ...(
+      await ds.getRepository(TransitPark).find({
+        where: {
+          transit_park_type: 'EPT',
+          status: 'ACTIVE',
+          archived_at: IsNull(),
+        },
+      })
+    ).map((tp) => ({ id: tp.id, type: 'EPT' })),
+  ];
+  const portTerminals = await ds.getRepository(Terminal).find({
+    where: {
+      terminal_type: 'PORT_TERMINAL',
+      status: 'ACTIVE',
+      archived_at: IsNull(),
+    },
+  });
+  const categories = await ds.getRepository(BookingCategory).find();
+  const timeslots = await ds.getRepository(FacilityTimeslot).find();
+  const transporters = await transporterCompanies(ds);
+  if (
+    !sites.length ||
+    !portTerminals.length ||
+    !categories.length ||
+    !timeslots.length ||
+    !transporters.length
+  ) {
+    throw new Error(
+      'Need facilities/EPTs, port terminals, booking categories, timeslots and transporter companies',
+    );
+  }
+
+  let created = 0;
+  for (const stage of missing) {
+    const steps = JOURNEY_STEPS.slice(
+      0,
+      JOURNEY_STEPS.indexOf(stage as (typeof JOURNEY_STEPS)[number]) + 1,
+    );
+    const transporter = pick(transporters);
+    const free = await freeTruckAndDriver(ds);
+    const truck = free.truck ?? (await addDemoTruck(ds, transporter));
+    const driver = free.driver ?? (await addDemoDriver(ds, transporter));
+    // Re-read the queues each time: a truck seeded a moment ago may now be waiting.
+    const busy = new Set(
+      (
+        await ds.query<{ id: string }[]>(
+          `SELECT COALESCE(facility_id, transit_park_id) AS id FROM bookings
+            WHERE status = 'LIVE' AND matched_at IS NOT NULL AND gtg_facility_at IS NULL
+           UNION
+           SELECT terminal_id FROM bookings
+            WHERE status = 'LIVE' AND in_pregate_at IS NOT NULL AND gtg_pregate_at IS NULL`,
+        )
+      ).map((r) => r.id),
+    );
+    const freeSites = sites.filter((x) => !busy.has(x.id));
+    const freeTerminals = portTerminals.filter((t) => !busy.has(t.id));
+    const needsFacilityGtg = steps.includes('GTG_FACILITY');
+    const needsPregateGtg = steps.includes('GTG_PREGATE');
+    if (
+      (needsFacilityGtg && !freeSites.length) ||
+      (needsPregateGtg && !freeTerminals.length)
+    ) {
+      console.log(
+        `  ⚠️  ${stage}: every facility/EPT or terminal has a queue — skipped`,
+      );
+      continue;
+    }
+    const site = pick(needsFacilityGtg ? freeSites : sites);
+    const terminal = pick(needsPregateGtg ? freeTerminals : portTerminals);
+    const common = {
+      transporter_company_id: transporter.id,
+      truck_id: truck.id,
+      driver_id: driver.id,
+      terminal_id: terminal.id,
+      expected_arrival_date: new Date(Date.now() + 2 * DAY)
+        .toISOString()
+        .slice(0, 10),
+    };
+    const dto = {
+      ...common,
+      facility_id: site.id,
+      booking_category_id: pick(categories).id,
+      expected_arrival_time_slot_id: pick(timeslots).id,
+    };
+
+    try {
+      const { id } = (await (site.type === 'EPT'
+        ? bookings.createEptBooking(
+            {
+              ...common,
+              transit_park_id: site.id,
+              export_type: pick([
+                'AGRO_EXPORT',
+                'MANUFACTURED_EXPORT',
+              ] as const),
+              ept_operation_type: 'LOADED_EXPORT_DELIVERY',
+              expected_arrival_time: '10:30',
+              gate_pass_number: `GP-DEMO-${crypto.randomInt(2000, 9999)}`,
+            },
+            admin,
+            admin.id,
+          )
+        : site.type === 'BONDED_TERMINAL'
+          ? bookings.createBondedTerminalBooking(dto, admin, admin.id)
+          : bookings.createTruckParkBooking(dto, admin, admin.id))) as {
+        id: string;
+      };
+      await pay(
+        ds,
+        bookings,
+        ledger,
+        id,
+        'SUCCESSFUL',
+        new Date(),
+        transporter,
+      );
+      for (const step of steps) {
+        if (step === 'IN_FACILITY') await bookings.markInFacility(id, admin);
+        if (step === 'MATCHED') await bookings.markMatched(id, admin);
+        if (step === 'GTG_FACILITY') await bookings.markGtgFacility(id, admin);
+        if (step === 'LEFT_FACILITY')
+          await bookings.markLeftFacility(id, admin);
+        if (step === 'IN_PREGATE') await bookings.markInPregate(id, admin);
+        if (step === 'GTG_PREGATE') await bookings.markGtgPregate(id, admin);
+        if (step === 'LEFT_PREGATE') await bookings.markLeftPregate(id, admin);
+        if (step === 'IN_TERMINAL') await bookings.markInTerminal(id, admin);
+      }
+      created += 1;
+      console.log(`  ➕ ${truck.plate_number} → ${stage}`);
+    } catch (err) {
+      console.log(`  ⚠️  ${stage}: ${(err as Error).message}`);
+    }
+  }
+  console.log(`  ✅ ${created} live truck(s) added`);
+}
+
+/** A verified demo truck, created only when every real truck is on a booking. */
+async function addDemoTruck(ds: DataSource, transporter: Company) {
+  const repo = ds.getRepository(Truck);
+  const n = await repo.count({ where: { plate_number: Like('DEMO-%') } });
+  const type = await ds.getRepository(TruckType).findOneOrFail({ where: {} });
+  return repo.save(
+    repo.create({
+      plate_number: `DEMO-${String(n + 1).padStart(3, '0')}-LG`,
+      truck_type_id: type.id,
+      registration_status: 'MSS_VERIFIED',
+      mss_verification_number: `MSS-DEMO-${n + 1}`,
+      verification_timestamp: new Date(),
+      transporter_company_id: transporter.id,
+      registered_by_company_name: transporter.name,
+    }),
+  );
+}
+
+/** A verified demo driver, created only when every real driver is on a booking. */
+async function addDemoDriver(ds: DataSource, transporter: Company) {
+  const repo = ds.getRepository(Driver);
+  const n = await repo.count({ where: { license_number: Like('DEMO-LIC-%') } });
+  return repo.save(
+    repo.create({
+      first_name: 'Demo',
+      last_name: `Driver ${n + 1}`,
+      license_number: `DEMO-LIC-${String(n + 1).padStart(3, '0')}`,
+      license_expiry_date: new Date(Date.now() + 365 * DAY)
+        .toISOString()
+        .slice(0, 10),
+      verification_status: 'VERIFIED',
+      verification_timestamp: new Date(),
+      transporter_company_id: transporter.id,
+      registered_by_company_name: transporter.name,
+    }),
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────
