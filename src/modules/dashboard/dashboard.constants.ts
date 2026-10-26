@@ -1,4 +1,8 @@
-import type { LiveTruckStage } from '../traffic-command/traffic-command.constants';
+import {
+  LIVE_TRUCK_STAGE_LABELS,
+  ON_ROAD_STAGES,
+  type LiveTruckStage,
+} from '../traffic-command/traffic-command.constants';
 
 /** Congestion index at/above which a site or the corridor is in the red zone (override: CONGESTION_RED_ZONE_THRESHOLD). */
 export const DEFAULT_RED_ZONE_THRESHOLD = 70;
@@ -27,8 +31,8 @@ export const LIFECYCLE_GROUPS: {
     key: LifecycleStageKey;
     label: string;
     description: string;
-    /** Live-truck stage the card counts (AVAILABLE / LEFT_TERMINAL are counted separately). */
-    stage?: LiveTruckStage;
+    /** Live-truck stages the card sums (AVAILABLE / LEFT_TERMINAL are counted separately). */
+    stages?: LiveTruckStage[];
   }[];
 }[] = [
   {
@@ -43,8 +47,9 @@ export const LIFECYCLE_GROUPS: {
       {
         key: 'ON_TRIP',
         label: 'On Trip',
-        description: 'Booked and en route to facility',
-        stage: 'ENROUTE_FACILITY',
+        description:
+          'Booked and on the road — to facility, pregate or terminal',
+        stages: ON_ROAD_STAGES,
       },
     ],
   },
@@ -56,25 +61,25 @@ export const LIFECYCLE_GROUPS: {
         key: 'IN_FACILITY',
         label: 'In Facility',
         description: 'Gated into bonded facility or truck park',
-        stage: 'IN_FACILITY',
+        stages: ['IN_FACILITY'],
       },
       {
         key: 'MATCHED',
         label: 'Matched',
         description: 'TEP matched to truck at facility',
-        stage: 'MATCHED',
+        stages: ['MATCHED'],
       },
       {
         key: 'GTG_FACILITY',
         label: 'GTG Facility',
         description: 'Scheduled and ready to exit facility',
-        stage: 'GTG_FACILITY',
+        stages: ['GTG_FACILITY'],
       },
       {
         key: 'LEFT_FACILITY',
         label: 'Left Facility',
         description: 'Gated out of facility',
-        stage: 'ENROUTE_PREGATE',
+        stages: ['LEFT_FACILITY'],
       },
     ],
   },
@@ -86,19 +91,19 @@ export const LIFECYCLE_GROUPS: {
         key: 'IN_PREGATE',
         label: 'In Pregate',
         description: 'Gated into transit pregate park',
-        stage: 'IN_PREGATE',
+        stages: ['IN_PREGATE'],
       },
       {
         key: 'GTG_PREGATE',
         label: 'GTG Pregate',
         description: 'Ready to exit pregate',
-        stage: 'GTG_PREGATE',
+        stages: ['GTG_PREGATE'],
       },
       {
         key: 'LEFT_PREGATE',
         label: 'Left Pregate',
         description: 'Gated out of pregate',
-        stage: 'ENROUTE_TERMINAL',
+        stages: ['LEFT_PREGATE'],
       },
     ],
   },
@@ -110,7 +115,7 @@ export const LIFECYCLE_GROUPS: {
         key: 'IN_TERMINAL',
         label: 'In Terminal',
         description: 'Gated into destination terminal',
-        stage: 'IN_TERMINAL',
+        stages: ['IN_TERMINAL'],
       },
       {
         key: 'LEFT_TERMINAL',
@@ -122,17 +127,7 @@ export const LIFECYCLE_GROUPS: {
 ];
 
 /** Feed status label for a LIVE booking's stage (Recent Bookings). */
-export const STAGE_FEED_LABELS: Record<LiveTruckStage, string> = {
-  ENROUTE_FACILITY: 'On-Trip',
-  IN_FACILITY: 'In-Facility',
-  MATCHED: 'Matched',
-  GTG_FACILITY: 'GTG-Facility',
-  ENROUTE_PREGATE: 'Left-Facility',
-  IN_PREGATE: 'In-Pregate',
-  GTG_PREGATE: 'GTG-Pregate',
-  ENROUTE_TERMINAL: 'Left-Pregate',
-  IN_TERMINAL: 'In-Terminal',
-};
+export const STAGE_FEED_LABELS = LIVE_TRUCK_STAGE_LABELS;
 
 // ─────────────────────────────────────────────────────────────────────────
 // Operations Command & Control

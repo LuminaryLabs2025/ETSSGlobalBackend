@@ -132,20 +132,20 @@ All `GET` endpoints require `view_traffic_command`.
 
 Every **LIVE** booking is one truck. Its stage is derived from the booking's lifecycle timestamps:
 
-`ENROUTE_FACILITY → IN_FACILITY → MATCHED → GTG_FACILITY → ENROUTE_PREGATE → IN_PREGATE → GTG_PREGATE → ENROUTE_TERMINAL → IN_TERMINAL`
+`ON_TRIP → IN_FACILITY → MATCHED → GTG_FACILITY → LEFT_FACILITY → IN_PREGATE → GTG_PREGATE → LEFT_PREGATE → IN_TERMINAL`
 
-The labels match the wireframe columns ("Enroute-Facility", "In-Facility", …) and are returned in the API.
+Stage keys and labels ("On Trip", "In Facility", "Left Facility", …) are the same as the dashboard overview lifecycle cards. A truck's stage says which milestone it last passed; where it is heading is in `destination` on `GET /live-trucks`.
 
 - **`GET /live-trucks/summary`** returns the status cards:
   `{ total_bookings, on_trip, left_facility, left_pregate, in_terminal, by_stage: [{ stage, label, count }], last_updated }`
-  - `on_trip` counts all three Enroute stages.
-  - `left_facility` = Enroute Pregate; `left_pregate` = Enroute Terminal.
+  - `on_trip` counts every truck on the road: `ON_TRIP` + `LEFT_FACILITY` + `LEFT_PREGATE`.
+  - `left_facility` / `left_pregate` count only that one stage.
 - **`GET /live-trucks/matrix`** returns the "Truck Real-Time Activity" grid, one row per facility or EPT:
   ```json
-  { "columns": [{ "stage": "ENROUTE_FACILITY", "label": "Enroute-Facility" }, ...],
+  { "columns": [{ "stage": "ON_TRIP", "label": "On Trip" }, ...],
     "data": [{ "s_no": 1, "location": { "id", "type": "FACILITY|TRANSIT_PARK", "name", "code", "park_type", "park_type_label": "Bonded Terminal" },
                "total": 85,
-               "stages": [{ "stage": "IN_FACILITY", "label": "In-Facility", "count": 12,
+               "stages": [{ "stage": "IN_FACILITY", "label": "In Facility", "count": 12,
                             "trucks": [{ "booking_uuid", "booking_id", "truck_plate_number", "driver_name", "since" }], "more": 10 }] }],
     "meta": { ... } }
   ```

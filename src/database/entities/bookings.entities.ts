@@ -277,7 +277,7 @@ export class Booking {
   @Column({ type: 'timestamp', nullable: true })
   gtg_pregate_at: Date | null;
 
-  /** Truck exited the facility/EPT after GTG-Facility (barrier EXIT tag or manual) — "Enroute Pregate". */
+  /** Truck exited the facility/EPT after GTG-Facility (barrier EXIT tag or manual) — "Left Facility" stage. */
   @Column({ type: 'timestamp', nullable: true })
   left_facility_at: Date | null;
 

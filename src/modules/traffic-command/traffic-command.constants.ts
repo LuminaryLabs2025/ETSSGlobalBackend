@@ -3,40 +3,48 @@
  * booking's lifecycle timestamps — the latest milestone reached wins.
  */
 export const LIVE_TRUCK_STAGES = [
-  'ENROUTE_FACILITY',
+  'ON_TRIP',
   'IN_FACILITY',
   'MATCHED',
   'GTG_FACILITY',
-  'ENROUTE_PREGATE',
+  'LEFT_FACILITY',
   'IN_PREGATE',
   'GTG_PREGATE',
-  'ENROUTE_TERMINAL',
+  'LEFT_PREGATE',
   'IN_TERMINAL',
 ] as const;
 export type LiveTruckStage = (typeof LIVE_TRUCK_STAGES)[number];
 
+/** Same wording as the overview lifecycle cards; `destination` says where a truck is heading. */
 export const LIVE_TRUCK_STAGE_LABELS: Record<LiveTruckStage, string> = {
-  ENROUTE_FACILITY: 'Enroute-Facility',
-  IN_FACILITY: 'In-Facility',
+  ON_TRIP: 'On Trip',
+  IN_FACILITY: 'In Facility',
   MATCHED: 'Matched',
-  GTG_FACILITY: 'GTG-Facility',
-  ENROUTE_PREGATE: 'Enroute Pregate',
-  IN_PREGATE: 'In-Pregate',
-  GTG_PREGATE: 'GTG-Pregate',
-  ENROUTE_TERMINAL: 'Enroute Terminal',
-  IN_TERMINAL: 'In-Terminal',
+  GTG_FACILITY: 'GTG Facility',
+  LEFT_FACILITY: 'Left Facility',
+  IN_PREGATE: 'In Pregate',
+  GTG_PREGATE: 'GTG Pregate',
+  LEFT_PREGATE: 'Left Pregate',
+  IN_TERMINAL: 'In Terminal',
 };
+
+/** Stages where the truck is on the road between stops — together they make up "On Trip" totals. */
+export const ON_ROAD_STAGES: LiveTruckStage[] = [
+  'ON_TRIP',
+  'LEFT_FACILITY',
+  'LEFT_PREGATE',
+];
 
 /** Coarser grouping used by the "By Route" view. */
 export const LIVE_TRUCK_STAGE_GROUP: Record<LiveTruckStage, string> = {
-  ENROUTE_FACILITY: 'TO_FACILITY',
+  ON_TRIP: 'TO_FACILITY',
   IN_FACILITY: 'IN_FACILITY',
   MATCHED: 'IN_FACILITY',
   GTG_FACILITY: 'IN_FACILITY',
-  ENROUTE_PREGATE: 'FACILITY_TO_TRANSIT_PARK',
+  LEFT_FACILITY: 'FACILITY_TO_TRANSIT_PARK',
   IN_PREGATE: 'IN_TRANSIT_PARK',
   GTG_PREGATE: 'IN_TRANSIT_PARK',
-  ENROUTE_TERMINAL: 'TRANSIT_PARK_TO_TERMINAL',
+  LEFT_PREGATE: 'TRANSIT_PARK_TO_TERMINAL',
   IN_TERMINAL: 'IN_TERMINAL',
 };
 
@@ -50,14 +58,14 @@ export const FACILITY_STAGES: LiveTruckStage[] = [
 export function stageSql(b = 'b'): string {
   return `(CASE
     WHEN ${b}.in_terminal_at IS NOT NULL THEN 'IN_TERMINAL'
-    WHEN ${b}.left_pregate_at IS NOT NULL THEN 'ENROUTE_TERMINAL'
+    WHEN ${b}.left_pregate_at IS NOT NULL THEN 'LEFT_PREGATE'
     WHEN ${b}.gtg_pregate_at IS NOT NULL THEN 'GTG_PREGATE'
     WHEN ${b}.in_pregate_at IS NOT NULL THEN 'IN_PREGATE'
-    WHEN ${b}.left_facility_at IS NOT NULL THEN 'ENROUTE_PREGATE'
+    WHEN ${b}.left_facility_at IS NOT NULL THEN 'LEFT_FACILITY'
     WHEN ${b}.gtg_facility_at IS NOT NULL THEN 'GTG_FACILITY'
     WHEN ${b}.matched_at IS NOT NULL THEN 'MATCHED'
     WHEN ${b}.in_facility_at IS NOT NULL THEN 'IN_FACILITY'
-    ELSE 'ENROUTE_FACILITY'
+    ELSE 'ON_TRIP'
   END)`;
 }
 

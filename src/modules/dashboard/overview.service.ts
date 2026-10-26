@@ -433,8 +433,11 @@ export class OverviewService {
           key: item.key,
           label: item.label,
           description: item.description,
-          count: item.stage
-            ? (stageCounts.get(item.stage) ?? 0)
+          count: item.stages
+            ? item.stages.reduce(
+                (acc, stage) => acc + (stageCounts.get(stage) ?? 0),
+                0,
+              )
             : (counts[item.key as keyof typeof counts] ?? 0),
         })),
       })),

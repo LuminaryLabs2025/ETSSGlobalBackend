@@ -7,6 +7,7 @@ import {
   LIVE_TRUCK_STAGE_GROUP,
   LIVE_TRUCK_STAGE_LABELS,
   LiveTruckStage,
+  ON_ROAD_STAGES,
   PARK_TYPE_LABELS,
   stageSinceSql,
   stageSql,
@@ -62,12 +63,9 @@ export class LiveTrucksService {
     const total = rows.reduce((acc, r) => acc + Number(r.count), 0);
     return {
       total_bookings: total,
-      on_trip:
-        count('ENROUTE_FACILITY') +
-        count('ENROUTE_PREGATE') +
-        count('ENROUTE_TERMINAL'),
-      left_facility: count('ENROUTE_PREGATE'),
-      left_pregate: count('ENROUTE_TERMINAL'),
+      on_trip: ON_ROAD_STAGES.reduce((acc, stage) => acc + count(stage), 0),
+      left_facility: count('LEFT_FACILITY'),
+      left_pregate: count('LEFT_PREGATE'),
       in_terminal: count('IN_TERMINAL'),
       by_stage: LIVE_TRUCK_STAGES.map((stage) => ({
         stage,
@@ -257,14 +255,14 @@ export class LiveTrucksService {
     const location = row.location_name ?? 'Facility';
     const terminal = row.terminal_name || 'Terminal';
     const where: Record<LiveTruckStage, [string, string]> = {
-      ENROUTE_FACILITY: [`En route to ${location}`, location],
+      ON_TRIP: [`En route to ${location}`, location],
       IN_FACILITY: [location, 'Pregate'],
       MATCHED: [location, 'Pregate'],
       GTG_FACILITY: [location, 'Pregate'],
-      ENROUTE_PREGATE: ['En route to Pregate', 'Pregate'],
+      LEFT_FACILITY: ['En route to Pregate', 'Pregate'],
       IN_PREGATE: ['Pregate', terminal],
       GTG_PREGATE: ['Pregate', terminal],
-      ENROUTE_TERMINAL: [`En route to ${terminal}`, terminal],
+      LEFT_PREGATE: [`En route to ${terminal}`, terminal],
       IN_TERMINAL: [terminal, terminal],
     };
     const [currentLocation, destination] = where[row.stage];

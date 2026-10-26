@@ -149,7 +149,7 @@ The six tiles are `live_bookings`, `verified_trucks`, `verified_drivers`, `avg_t
   "groups": [
     { "key": "BOOKING_TRANSIT", "label": "Booking & Transit", "items": [
       { "key": "AVAILABLE", "label": "Available", "description": "Verified truck ready for booking", "count": 48 },
-      { "key": "ON_TRIP", "label": "On Trip", "description": "Booked and en route to facility", "count": 11 } ] },
+      { "key": "ON_TRIP", "label": "On Trip", "description": "Booked and on the road — to facility, pregate or terminal", "count": 31 } ] },
     { "key": "FACILITY", "label": "Facility", "items": [ "IN_FACILITY", "MATCHED", "GTG_FACILITY", "LEFT_FACILITY" ] },
     { "key": "PREGATE", "label": "Pregate", "items": [ "IN_PREGATE", "GTG_PREGATE", "LEFT_PREGATE" ] },
     { "key": "TERMINAL", "label": "Terminal", "items": [ "IN_TERMINAL", "LEFT_TERMINAL" ] }
@@ -194,11 +194,11 @@ The six tiles are `live_bookings`, `verified_trucks`, `verified_drivers`, `avg_t
 
 ```json
 { "type": "bookings", "data": [
-  { "kind": "BOOKING", "id": "…", "reference": "BKG-2026-008447", "title": "Truck Booking", "plate_number": "AAA123XY", "party": "ABC Logistics", "destination": "APM Terminals", "status": "ENROUTE_FACILITY", "status_label": "On-Trip", "occurred_at": "…" },
+  { "kind": "BOOKING", "id": "…", "reference": "BKG-2026-008447", "title": "Truck Booking", "plate_number": "AAA123XY", "party": "ABC Logistics", "destination": "APM Terminals", "status": "ON_TRIP", "status_label": "On Trip", "occurred_at": "…" },
   { "kind": "UTILITY_TICKET", "id": "…", "reference": "UT-0012", "title": "Utility Ticket", "plate_number": "MN1440D", "party": "APM Terminals Apapa", "destination": "APM Terminals Apapa", "status": "PENDING", "status_label": "Pending", "occurred_at": "…" } ] }
 ```
 
-- For a LIVE booking, `status_label` is its current stage: On-Trip, In-Facility, Matched, GTG-Facility, Left-Facility, In-Pregate, GTG-Pregate, Left-Pregate or In-Terminal.
+- For a LIVE booking, `status_label` is its current stage, worded as on the lifecycle cards: On Trip, In Facility, Matched, GTG Facility, Left Facility, In Pregate, GTG Pregate, Left Pregate or In Terminal.
 - Otherwise it is Completed, Cancelled or Expired.
 
 `?type=matchings`:

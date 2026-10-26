@@ -1349,8 +1349,8 @@ export class BookingsService implements OnModuleInit, PayableSyncHandler {
   // ─────────────────────────────────────────────────────────────────────
   // Post-GTG movement — set manually here or automatically by Traffic
   // Command barrier tags (EXIT at the facility/EPT/pregate, ENTRY at the
-  // destination terminal). Drive the Live Truck Updates "Enroute Pregate",
-  // "Enroute Terminal" and "In-Terminal" stages.
+  // destination terminal). Drive the Live Truck Updates "Left Facility",
+  // "Left Pregate" and "In Terminal" stages.
   // ─────────────────────────────────────────────────────────────────────
 
   async markLeftFacility(
