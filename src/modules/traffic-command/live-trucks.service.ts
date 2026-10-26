@@ -5,6 +5,8 @@ import { Booking } from '../../database/entities';
 import {
   LIVE_TRUCK_STAGES,
   LIVE_TRUCK_STAGE_GROUP,
+  LIVE_TRUCK_STAGE_GROUP_LABELS,
+  LIVE_TRUCK_STAGE_GROUPS,
   LIVE_TRUCK_STAGE_LABELS,
   LiveTruckStage,
   ON_ROAD_STAGES,
@@ -266,6 +268,7 @@ export class LiveTrucksService {
       IN_TERMINAL: [terminal, terminal],
     };
     const [currentLocation, destination] = where[row.stage];
+    const group = LIVE_TRUCK_STAGE_GROUP[row.stage];
     return {
       booking_uuid: row.id,
       booking_id: row.booking_id,
@@ -284,7 +287,9 @@ export class LiveTrucksService {
       terminal_name: row.terminal_name,
       stage: row.stage,
       stage_label: LIVE_TRUCK_STAGE_LABELS[row.stage],
-      stage_group: LIVE_TRUCK_STAGE_GROUP[row.stage],
+      stage_group: group,
+      stage_group_label: LIVE_TRUCK_STAGE_GROUP_LABELS[group],
+      stage_group_order: LIVE_TRUCK_STAGE_GROUPS.indexOf(group) + 1,
       since: row.since,
       current_location: currentLocation,
       destination,

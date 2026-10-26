@@ -151,7 +151,18 @@ Stage keys and labels ("On Trip", "In Facility", "Left Facility", …) are the s
   ```
   - `cell_limit` (default 2) is the number of plates returned per cell. Render `more` as "+N".
   - Plates within a cell are oldest first (FIFO).
-- **`GET /live-trucks`** is the flat list for the By Status / By Route tables. Each row has `stage`, `stage_label`, `stage_group` (route grouping), `current_location`, `destination`, `since` and the truck and driver.
+- **`GET /live-trucks`** is the flat list for the By Status / By Route tables. Each row has `stage`, `stage_label`, `stage_group`, `stage_group_label`, `stage_group_order`, `current_location`, `destination`, `since` and the truck and driver.
+  - **By Route:** make one section per `stage_group`, headed by `stage_group_label` and sorted by `stage_group_order`:
+
+    | order | `stage_group` | `stage_group_label` | stages inside |
+    |---|---|---|---|
+    | 1 | `TO_FACILITY` | To Facility | On Trip |
+    | 2 | `IN_FACILITY` | In Facility | In Facility, Matched, GTG Facility |
+    | 3 | `FACILITY_TO_PREGATE` | Facility → Pregate | Left Facility |
+    | 4 | `IN_PREGATE` | In Pregate | In Pregate, GTG Pregate |
+    | 5 | `PREGATE_TO_TERMINAL` | Pregate → Terminal | Left Pregate |
+    | 6 | `IN_TERMINAL` | In Terminal | In Terminal |
+  - **By Status:** group by `stage`, headed by `stage_label`.
 - **Query params:**
   - `booking_type`: `BONDED_TERMINAL|TRUCK_PARK|FISH_VAN_PARK|EPT`. This drives the "Filter By: Bonded Terminals / Truck Parks / Fish-Van Parks" control.
   - `location_id`, `stage`

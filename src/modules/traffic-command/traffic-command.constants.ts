@@ -35,16 +35,42 @@ export const ON_ROAD_STAGES: LiveTruckStage[] = [
   'LEFT_PREGATE',
 ];
 
+/** "By Route" sections, in journey order. */
+export const LIVE_TRUCK_STAGE_GROUPS = [
+  'TO_FACILITY',
+  'IN_FACILITY',
+  'FACILITY_TO_PREGATE',
+  'IN_PREGATE',
+  'PREGATE_TO_TERMINAL',
+  'IN_TERMINAL',
+] as const;
+export type LiveTruckStageGroup = (typeof LIVE_TRUCK_STAGE_GROUPS)[number];
+
+export const LIVE_TRUCK_STAGE_GROUP_LABELS: Record<
+  LiveTruckStageGroup,
+  string
+> = {
+  TO_FACILITY: 'To Facility',
+  IN_FACILITY: 'In Facility',
+  FACILITY_TO_PREGATE: 'Facility → Pregate',
+  IN_PREGATE: 'In Pregate',
+  PREGATE_TO_TERMINAL: 'Pregate → Terminal',
+  IN_TERMINAL: 'In Terminal',
+};
+
 /** Coarser grouping used by the "By Route" view. */
-export const LIVE_TRUCK_STAGE_GROUP: Record<LiveTruckStage, string> = {
+export const LIVE_TRUCK_STAGE_GROUP: Record<
+  LiveTruckStage,
+  LiveTruckStageGroup
+> = {
   ON_TRIP: 'TO_FACILITY',
   IN_FACILITY: 'IN_FACILITY',
   MATCHED: 'IN_FACILITY',
   GTG_FACILITY: 'IN_FACILITY',
-  LEFT_FACILITY: 'FACILITY_TO_TRANSIT_PARK',
-  IN_PREGATE: 'IN_TRANSIT_PARK',
-  GTG_PREGATE: 'IN_TRANSIT_PARK',
-  LEFT_PREGATE: 'TRANSIT_PARK_TO_TERMINAL',
+  LEFT_FACILITY: 'FACILITY_TO_PREGATE',
+  IN_PREGATE: 'IN_PREGATE',
+  GTG_PREGATE: 'IN_PREGATE',
+  LEFT_PREGATE: 'PREGATE_TO_TERMINAL',
   IN_TERMINAL: 'IN_TERMINAL',
 };
 
